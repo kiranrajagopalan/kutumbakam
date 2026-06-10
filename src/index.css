@@ -1,0 +1,77 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/fraunces';
+@import '@fontsource-variable/albert-sans';
+
+/*
+ * Interim design tokens — deliberately restrained "paper & ink" system.
+ * The final art direction will be briefed by Kiran; everything visual hangs
+ * off these tokens so a re-skin is a token swap, not a rewrite.
+ */
+@theme {
+  --font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
+  --font-body: 'Albert Sans Variable', 'Helvetica Neue', Arial, sans-serif;
+
+  --color-paper: #f7f3ec;
+  --color-card: #fffdf8;
+  --color-ink: #221d18;
+  --color-ink-soft: #6f6457;
+  --color-ink-faint: #776c5d; /* ≥4.5:1 on paper — caps labels and hints stay AA */
+  --color-line: #e6ddd0;
+  --color-thread: #d9cebd; /* tree connector lines */
+  --color-accent: #96402f;
+  --color-accent-deep: #7c3325;
+  --color-accent-soft: #f2e3dc;
+  --color-leaf: #5f6f50;
+
+  --radius-card: 16px;
+  --radius-chip: 10px;
+
+  --shadow-sheet: 0 -8px 40px rgba(34, 29, 24, 0.18);
+  --shadow-pop: 0 10px 30px rgba(34, 29, 24, 0.12);
+
+  --animate-sheet-up: sheet-up 0.3s cubic-bezier(0.32, 0.72, 0, 1) both;
+  --animate-fade-in: fade-in 0.2s ease-out both;
+  --animate-toast-in: toast-in 0.25s cubic-bezier(0.32, 0.72, 0, 1) both;
+
+  @keyframes sheet-up {
+    from { transform: translateY(28px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes toast-in {
+    from { transform: translateY(8px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-paper text-ink font-body;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  input, textarea, select, button {
+    font: inherit;
+    color: inherit;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Letterspaced section labels — the archival "ledger heading" voice */
+  .label-caps {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint;
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
