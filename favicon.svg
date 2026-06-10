@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#f7f3ec"/>
+  <!-- three kin nodes joined by a single thread: two elders, one descendant -->
+  <path d="M20 24 H44 M32 24 V40" stroke="#96402f" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <circle cx="20" cy="24" r="7" fill="#96402f"/>
+  <circle cx="44" cy="24" r="7" fill="#c4714f"/>
+  <circle cx="32" cy="44" r="7" fill="#221d18"/>
+</svg>
