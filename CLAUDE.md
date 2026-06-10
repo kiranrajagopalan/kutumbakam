@@ -20,5 +20,13 @@ decisions, data model and milestones.
   members.
 - Dev server: registered as `kutumbakam` in repo-wide `.claude/launch.json`, port 5180.
   Build with `npm run build` before declaring done.
+- **Deploy**: GitHub Pages via `.github/workflows/deploy.yml` on push to main
+  (repo `kiranrajagopalan/kutumbakam`, gh-pages branch, served at
+  **https://karnatricks.com/kutumbakam/** — the account's user-site custom
+  domain hosts all project pages, same as Lekka at /lekka/ —
+  with `VITE_BASE=/kutumbakam/`).
+  Kiran uses the deployed PWA (installed on phone/Mac); localhost is for
+  development only. IndexedDB is per-origin — moving between localhost and the
+  deployed URL requires export → import.
 - This is a family/home-world app (like Lekka). It is unrelated to Karnatricks/Raga Rush
   conventions despite the shared folder.

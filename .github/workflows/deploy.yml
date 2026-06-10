@@ -31,7 +31,8 @@ jobs:
 
       - name: Build
         env:
-          # Served at kiranrajagopalan.github.io/kutumbakam/
+          # Served at karnatricks.com/kutumbakam/ (the account's user-site
+          # custom domain hosts all project pages under subpaths)
           VITE_BASE: /kutumbakam/
         run: npm run build
 
