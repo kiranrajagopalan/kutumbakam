@@ -16,7 +16,10 @@ const ROLES = [
   { key: 'daughter', label: 'Daughter', role: 'child', gender: 'female' },
 ];
 
-export default function AddRelativeSheet({ anchor, family, open, onClose, initialRoleKey = null }) {
+// targetUnionId: aim the spouse role at an existing union ("+ Add partner"
+// on a "Partner not recorded" row) — fills that union instead of creating
+// a new marriage, which also makes the person a parent of its children.
+export default function AddRelativeSheet({ anchor, family, open, onClose, initialRoleKey = null, targetUnionId = null }) {
   const [picked, setPicked] = useState(null);
   const [tab, setTab] = useState('new');
   const [unionId, setUnionId] = useState(null);
@@ -53,6 +56,8 @@ export default function AddRelativeSheet({ anchor, family, open, onClose, initia
       (!q || `${p.name} ${p.nickname || ''}`.toLowerCase().includes(q.toLowerCase())),
   );
 
+  const targetUnion = targetUnionId ? family.unions.find((u) => u.union.id === targetUnionId) : null;
+
   async function submit(subject) {
     if (needsUnionChoice && !unionId) {
       toast('Pick which partner this child belongs with', 'error');
@@ -60,9 +65,17 @@ export default function AddRelativeSheet({ anchor, family, open, onClose, initia
     }
     try {
       const person = await addRelative(anchor.id, picked.role, subject, {
-        unionId: unionId || undefined,
+        unionId: (picked.role === 'spouse' ? targetUnionId : unionId) || undefined,
       });
-      toast(`${person.name} added as ${picked.label.toLowerCase()} of ${anchor.name}`);
+      if (targetUnion && targetUnion.children.length > 0) {
+        toast(
+          `${person.name} added as partner of ${anchor.name} — and as parent of ${targetUnion.children
+            .map((c) => c.person.name)
+            .join(', ')}`,
+        );
+      } else {
+        toast(`${person.name} added as ${picked.label.toLowerCase()} of ${anchor.name}`);
+      }
       onClose();
     } catch (e) {
       toast(e.message === 'CHOOSE_UNION' ? 'Pick which partner this child belongs with' : e.message, 'error');
@@ -73,7 +86,13 @@ export default function AddRelativeSheet({ anchor, family, open, onClose, initia
     <Sheet
       open={open}
       onClose={onClose}
-      title={picked ? `Add ${picked.label.toLowerCase()} of ${anchor.name}` : `Add a relative of ${anchor.name}`}
+      title={
+        targetUnion
+          ? `Add partner of ${anchor.name}`
+          : picked
+            ? `Add ${picked.label.toLowerCase()} of ${anchor.name}`
+            : `Add a relative of ${anchor.name}`
+      }
     >
       {!picked ? (
         <div className="grid grid-cols-2 gap-2 pb-2">
@@ -97,6 +116,11 @@ export default function AddRelativeSheet({ anchor, family, open, onClose, initia
         </div>
       ) : (
         <div>
+          {targetUnion && targetUnion.children.length > 0 && (
+            <p className="mb-3 rounded-[13px] bg-accent-soft/50 px-3 py-2 text-[13px] leading-snug text-accent-deep">
+              Will also be recorded as {targetUnion.children.map((c) => c.person.name).join(', ')}’s parent.
+            </p>
+          )}
           <div className="mb-4 flex gap-1 rounded-[13px] border border-line bg-paper p-1">
             {[
               ['new', 'New person'],

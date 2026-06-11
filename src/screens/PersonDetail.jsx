@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import Avatar from '../components/Avatar.jsx';
 import PersonRow from '../components/PersonRow.jsx';
 import AddRelativeSheet from '../components/AddRelativeSheet.jsx';
 import UnionSheet from '../components/UnionSheet.jsx';
 import HowRelated from '../components/HowRelated.jsx';
+import ConfirmSheet from '../components/ConfirmSheet.jsx';
 import { ChevronLeft, Pencil, Plus, Lock, TreeGlyph, ListGlyph } from '../components/icons.jsx';
-import { getPerson, getImmediateFamily, getNameHints } from '../db/repo.js';
+import { getPerson, getImmediateFamily, getNameHints, removePartnerFromUnion, removeChildLink } from '../db/repo.js';
 import { lifeSpan, ageOf, yearLabel } from '../lib/format.js';
+import { toast } from '../lib/toast.js';
 import { nav, back } from '../lib/router.js';
 
 function Section({ label, action, children }) {
@@ -38,13 +40,37 @@ function AddHint({ children, onClick }) {
 const relationChip = (relation) =>
   relation === 'adoptive' ? 'adopted' : relation === 'step' ? 'step' : null;
 
+// The ✕ shown on rows while a section is in manage mode. Unlinks remove
+// records, never people.
+function UnlinkX({ label, onClick }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className="mr-1 flex size-9 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold text-ink-faint transition-colors hover:bg-accent-soft/40 hover:text-accent-deep"
+    >
+      ✕
+    </button>
+  );
+}
+
 export default function PersonDetail({ id }) {
   const person = useLiveQuery(() => getPerson(id), [id]);
   const family = useLiveQuery(() => getImmediateFamily(id), [id]);
   const hints = useLiveQuery(() => getNameHints(), []);
-  const [sheet, setSheet] = useState({ open: false, role: null });
+  const [sheet, setSheet] = useState({ open: false, role: null, targetUnionId: null });
   const [unionEdit, setUnionEdit] = useState(null);
+  const [manage, setManage] = useState(null); // 'parents' | 'siblings' | 'unions'
+  const [confirm, setConfirm] = useState(null);
   const hintOf = (p) => hints?.get(p.id);
+
+  // Moving to another person's page exits manage mode and closes sheets.
+  useEffect(() => {
+    setManage(null);
+    setConfirm(null);
+    setSheet({ open: false, role: null, targetUnionId: null });
+  }, [id]);
 
   if (!person || !family) {
     return person === null ? (
@@ -57,7 +83,34 @@ export default function PersonDetail({ id }) {
     ) : null;
   }
 
-  const openSheet = (role = null) => setSheet({ open: true, role });
+  const openSheet = (role = null, targetUnionId = null) => setSheet({ open: true, role, targetUnionId });
+  // A section's header action: its add-hint plus the manage pencil, or Done
+  // while that section is in manage mode.
+  const manageAction = (key, hasRows, addHint = null) =>
+    manage === key ? (
+      <button
+        type="button"
+        onClick={() => setManage(null)}
+        className="px-1 text-[13px] font-semibold text-accent-deep"
+      >
+        Done
+      </button>
+    ) : (
+      <div className="flex items-center">
+        {addHint}
+        {hasRows && (
+          <button
+            type="button"
+            aria-label="Fix wrong links"
+            onClick={() => setManage(key)}
+            className="flex size-8 items-center justify-center rounded-full text-ink-faint transition-colors hover:bg-accent-soft/40 hover:text-accent-deep"
+          >
+            <Pencil className="size-3.5" />
+          </button>
+        )}
+      </div>
+    );
+  const unlinkToast = (name) => toast(`Unlinked — ${name} is still in the tree`);
   const age = ageOf(person);
   const chips = [
     person.nativePlace && { k: 'from', v: person.nativePlace },
@@ -138,16 +191,49 @@ export default function PersonDetail({ id }) {
 
       <Section
         label="Parents"
-        action={
+        action={manageAction(
+          'parents',
+          family.parents.length > 0,
           family.parents.length > 0 && family.parents.length < 2 ? (
             <AddHint onClick={() => openSheet(family.parents[0]?.person.gender === 'male' ? 'mother' : 'father')}>
               Add parent
             </AddHint>
-          ) : null
-        }
+          ) : null,
+        )}
       >
-        {family.parents.map(({ person: p, relation }) => (
-          <PersonRow key={p.id} person={p} chip={relationChip(relation)} hint={hintOf(p)} onClick={() => nav(`/p/${p.id}`)} />
+        {family.parents.map(({ person: p, relation, unionId }) => (
+          <div key={p.id} className="flex items-center">
+            <div className="min-w-0 flex-1">
+              <PersonRow
+                person={p}
+                chip={relationChip(relation)}
+                hint={hintOf(p)}
+                onClick={manage === 'parents' ? undefined : () => nav(`/p/${p.id}`)}
+              />
+            </div>
+            {manage === 'parents' && (
+              <UnlinkX
+                label={`Remove ${p.name} as parent`}
+                onClick={() => {
+                  const sibs = family.siblings
+                    .filter((s) => s.unionId === unionId && s.kind === 'full')
+                    .map((s) => s.person.name);
+                  setConfirm({
+                    title: `Remove ${p.name} as ${person.name}’s parent?`,
+                    message: `${p.name} will no longer be recorded as a parent of ${person.name}${
+                      sibs.length ? ` or ${sibs.join(', ')}` : ''
+                    }. ${p.name} stays in the tree.`,
+                    confirmLabel: 'Remove link',
+                    danger: true,
+                    action: async () => {
+                      await removePartnerFromUnion(unionId, p.id);
+                      unlinkToast(p.name);
+                    },
+                  });
+                }}
+              />
+            )}
+          </div>
         ))}
         {family.parents.length === 0 && (
           <div className="flex">
@@ -159,18 +245,40 @@ export default function PersonDetail({ id }) {
 
       <Section
         label="Siblings"
-        action={
-          family.siblings.length > 0 ? <AddHint onClick={() => openSheet('brother')}>Add</AddHint> : null
-        }
+        action={manageAction(
+          'siblings',
+          family.siblings.some((s) => s.kind === 'full'),
+          family.siblings.length > 0 ? <AddHint onClick={() => openSheet('brother')}>Add</AddHint> : null,
+        )}
       >
-        {family.siblings.map(({ person: p, kind, relation }) => (
-          <PersonRow
-            key={p.id}
-            person={p}
-            chip={relationChip(relation) || (kind === 'half' ? 'half' : null)}
-            hint={hintOf(p)}
-            onClick={() => nav(`/p/${p.id}`)}
-          />
+        {family.siblings.map(({ person: p, kind, relation, unionId }) => (
+          <div key={p.id} className="flex items-center">
+            <div className="min-w-0 flex-1">
+              <PersonRow
+                person={p}
+                chip={relationChip(relation) || (kind === 'half' ? 'half' : null)}
+                hint={hintOf(p)}
+                onClick={manage === 'siblings' ? undefined : () => nav(`/p/${p.id}`)}
+              />
+            </div>
+            {manage === 'siblings' && kind === 'full' && (
+              <UnlinkX
+                label={`Remove the sibling link with ${p.name}`}
+                onClick={() =>
+                  setConfirm({
+                    title: `Remove the sibling link with ${p.name}?`,
+                    message: `${p.name} will no longer share parents with ${person.name}. ${p.name} stays in the tree.`,
+                    confirmLabel: 'Remove link',
+                    danger: true,
+                    action: async () => {
+                      await removeChildLink(p.id, unionId);
+                      unlinkToast(p.name);
+                    },
+                  })
+                }
+              />
+            )}
+          </div>
         ))}
         {family.siblings.length === 0 && (
           <div className="flex">
@@ -182,7 +290,11 @@ export default function PersonDetail({ id }) {
 
       <Section
         label={family.unions.length > 1 ? 'Marriages & children' : 'Marriage & children'}
-        action={family.unions.length > 0 ? <AddHint onClick={() => openSheet('spouse')}>Add</AddHint> : null}
+        action={manageAction(
+          'unions',
+          family.unions.some((u) => u.partner || u.children.length > 0),
+          family.unions.length > 0 ? <AddHint onClick={() => openSheet('spouse')}>Add</AddHint> : null,
+        )}
       >
         {family.unions.map((u) => (
           <div key={u.union.id} className="not-first:mt-2 not-first:border-t not-first:border-line not-first:pt-2">
@@ -194,27 +306,75 @@ export default function PersonDetail({ id }) {
                     chip={u.union.status && u.union.status !== 'married' ? u.union.status : null}
                     meta={unionMeta(u)}
                     hint={hintOf(u.partner)}
-                    onClick={() => nav(`/p/${u.partner.id}`)}
+                    onClick={manage === 'unions' ? undefined : () => nav(`/p/${u.partner.id}`)}
                   />
                 </div>
-                <button
-                  type="button"
-                  aria-label={`Edit marriage with ${u.partner.name}`}
-                  onClick={() =>
-                    setUnionEdit({ union: u.union, names: `${person.name} & ${u.partner.name}` })
-                  }
-                  className="mr-1 flex size-9 shrink-0 items-center justify-center rounded-full text-ink-faint transition-colors hover:bg-accent-soft/40 hover:text-accent-deep"
-                >
-                  <Pencil className="size-4" />
-                </button>
+                {manage === 'unions' ? (
+                  <UnlinkX
+                    label={`Remove the marriage with ${u.partner.name}`}
+                    onClick={() =>
+                      setConfirm({
+                        title: `Remove the marriage with ${u.partner.name}?`,
+                        message: u.children.length
+                          ? `${u.children.map((c) => c.person.name).join(', ')} stay${
+                              u.children.length === 1 ? 's' : ''
+                            } with ${person.name}. ${u.partner.name} stays in the tree.`
+                          : `${u.partner.name} stays in the tree — only the marriage record is removed.`,
+                        confirmLabel: 'Remove link',
+                        danger: true,
+                        action: async () => {
+                          await removePartnerFromUnion(u.union.id, u.partner.id);
+                          unlinkToast(u.partner.name);
+                        },
+                      })
+                    }
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={`Edit marriage with ${u.partner.name}`}
+                    onClick={() =>
+                      setUnionEdit({ union: u.union, names: `${person.name} & ${u.partner.name}` })
+                    }
+                    className="mr-1 flex size-9 shrink-0 items-center justify-center rounded-full text-ink-faint transition-colors hover:bg-accent-soft/40 hover:text-accent-deep"
+                  >
+                    <Pencil className="size-4" />
+                  </button>
+                )}
               </div>
             ) : (
-              <p className="px-2.5 py-2 text-[13.5px] italic text-ink-faint">Partner not recorded</p>
+              <AddHint onClick={() => openSheet('spouse', u.union.id)}>Add partner</AddHint>
             )}
             {u.children.length > 0 && (
               <div className="ml-5 border-l-2 border-line pl-2">
                 {u.children.map(({ person: c, relation }) => (
-                  <PersonRow key={c.id} person={c} chip={relationChip(relation)} hint={hintOf(c)} onClick={() => nav(`/p/${c.id}`)} />
+                  <div key={c.id} className="flex items-center">
+                    <div className="min-w-0 flex-1">
+                      <PersonRow
+                        person={c}
+                        chip={relationChip(relation)}
+                        hint={hintOf(c)}
+                        onClick={manage === 'unions' ? undefined : () => nav(`/p/${c.id}`)}
+                      />
+                    </div>
+                    {manage === 'unions' && (
+                      <UnlinkX
+                        label={`Remove ${c.name} as a child of this marriage`}
+                        onClick={() =>
+                          setConfirm({
+                            title: `Remove ${c.name} as a child of this marriage?`,
+                            message: `${c.name} stays in the tree — only the child link is removed.`,
+                            confirmLabel: 'Remove link',
+                            danger: true,
+                            action: async () => {
+                              await removeChildLink(c.id, u.union.id);
+                              unlinkToast(c.name);
+                            },
+                          })
+                        }
+                      />
+                    )}
+                  </div>
                 ))}
               </div>
             )}
@@ -263,13 +423,23 @@ export default function PersonDetail({ id }) {
         family={family}
         open={sheet.open}
         initialRoleKey={sheet.role}
-        onClose={() => setSheet({ open: false, role: null })}
+        targetUnionId={sheet.targetUnionId}
+        onClose={() => setSheet({ open: false, role: null, targetUnionId: null })}
       />
       <UnionSheet
         open={!!unionEdit}
         union={unionEdit?.union}
         names={unionEdit?.names}
         onClose={() => setUnionEdit(null)}
+      />
+      <ConfirmSheet
+        open={!!confirm}
+        onClose={() => setConfirm(null)}
+        title={confirm?.title}
+        message={confirm?.message}
+        confirmLabel={confirm?.confirmLabel}
+        danger={confirm?.danger}
+        onConfirm={() => confirm?.action()}
       />
     </div>
   );

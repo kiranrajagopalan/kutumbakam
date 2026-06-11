@@ -168,13 +168,24 @@ export async function addRelative(anchorId, role, subject, opts = {}) {
     } else if (role === 'spouse') {
       const mine = await unionsOf(anchorId);
       if (!mine.some((u) => u.partnerIds.includes(person.id))) {
-        await db.unions.add({
-          id: uid(),
-          partnerIds: [anchorId, person.id],
-          status: 'married',
-          marriageYear: null,
-          createdAt: now(),
-        });
+        // Targeted at an existing union (the "+ Add partner" repair on a
+        // "Partner not recorded" row): fill its empty slot, which also makes
+        // the person a parent of that union's children.
+        const target = opts.unionId ? mine.find((u) => u.id === opts.unionId) : null;
+        if (target) {
+          if (target.partnerIds.length >= 2) throw new Error('Both partners are already recorded');
+          const patch = { partnerIds: [...target.partnerIds, person.id] };
+          if (patch.partnerIds.length === 2 && !target.status) patch.status = 'married';
+          await db.unions.update(target.id, patch);
+        } else {
+          await db.unions.add({
+            id: uid(),
+            partnerIds: [anchorId, person.id],
+            status: 'married',
+            marriageYear: null,
+            createdAt: now(),
+          });
+        }
       }
     } else if (role === 'child') {
       let unionId = opts.unionId;
@@ -232,16 +243,18 @@ export async function getImmediateFamily(personId) {
   for (const { union, link } of parentUnions) {
     for (const pid of union.partnerIds) {
       const p = await db.persons.get(pid);
-      if (p) parents.push({ person: p, relation: link.relation });
+      if (p) parents.push({ person: p, relation: link.relation, unionId: union.id });
     }
   }
 
   // Full siblings share a parent union; half siblings come from a parent's
-  // other unions.
+  // other unions. unionId is the union their own child-link points at —
+  // what an unlink would remove.
   const siblingMap = new Map();
   for (const { union } of parentUnions) {
     for (const link of await childLinksOfUnion(union.id)) {
-      if (link.childId !== personId) siblingMap.set(link.childId, { kind: 'full', relation: link.relation });
+      if (link.childId !== personId)
+        siblingMap.set(link.childId, { kind: 'full', relation: link.relation, unionId: union.id });
     }
   }
   for (const { person: parent } of parents) {
@@ -249,7 +262,7 @@ export async function getImmediateFamily(personId) {
       if (parentUnions.some((pu) => pu.union.id === u.id)) continue;
       for (const link of await childLinksOfUnion(u.id)) {
         if (link.childId === personId || siblingMap.has(link.childId)) continue;
-        siblingMap.set(link.childId, { kind: 'half', relation: link.relation });
+        siblingMap.set(link.childId, { kind: 'half', relation: link.relation, unionId: u.id });
       }
     }
   }
@@ -276,6 +289,36 @@ export async function getImmediateFamily(personId) {
   unions.sort((a, b) => (a.union.createdAt || 0) - (b.union.createdAt || 0));
 
   return { parents, siblings, unions, hasParents: parents.length > 0 };
+}
+
+// ---------- unlink (the repair kit — removes links, never people) ----------
+
+// A union that no longer connects anyone is removed. (Single parent WITH
+// children, and unknown-parents containers WITH children, both stay.)
+async function sweepUnion(unionId) {
+  const u = await db.unions.get(unionId);
+  if (!u) return;
+  const kids = await childLinksOfUnion(unionId);
+  if (kids.length === 0 && u.partnerIds.length <= 1) await db.unions.delete(unionId);
+}
+
+// Pull one partner out of a union: undoes a wrong marriage, or removes one
+// wrongly-recorded parent. Children stay with the remaining partner.
+export async function removePartnerFromUnion(unionId, personId) {
+  return db.transaction('rw', db.unions, db.childLinks, async () => {
+    const u = await db.unions.get(unionId);
+    if (!u) return;
+    await db.unions.update(unionId, { partnerIds: u.partnerIds.filter((p) => p !== personId) });
+    await sweepUnion(unionId);
+  });
+}
+
+// Remove a child↔union link: undoes a wrong sibling/child/parents record.
+export async function removeChildLink(childId, unionId) {
+  return db.transaction('rw', db.unions, db.childLinks, async () => {
+    await db.childLinks.where('childId').equals(childId).and((l) => l.unionId === unionId).delete();
+    await sweepUnion(unionId);
+  });
 }
 
 // ---------- delete ----------

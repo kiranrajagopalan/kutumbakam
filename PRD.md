@@ -61,6 +61,14 @@ people are related, in Tulu and English.
   detail with derived immediate family (full/half siblings, adoption chips, unions in
   order), add-relative sheet (new or link-existing, union picker for children),
   edit form, photo→webp, export/import, demo family, installable PWA.
+  **Repair kit (12 Jun 2026)**: "+ Add partner" on a "Partner not recorded"
+  union fills that union (and parents its children — co-parents rule applies);
+  per-section manage mode on the person page (pencil → ✕ per row, Done to
+  exit) unlinks wrong parent/marriage/sibling/child records with
+  consequence-specific confirms. Unlinks remove links, never people
+  (`removePartnerFromUnion` / `removeChildLink`; emptied container unions
+  swept). Half-sibling rows are not unlinkable from a sibling's page — remove
+  them as the shared parent's child, where the meaning is unambiguous.
 - **M2 — Tree view** (core shipped 10 Jun 2026): whole-family zoomable/pannable SVG
   tree at `#/tree` — custom layout (see above), pinch/wheel/drag, fit button,
   tap-select with info card, self-ring, extended-family nodes dimmed + hideable
