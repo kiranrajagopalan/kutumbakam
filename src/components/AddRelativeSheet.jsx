@@ -23,6 +23,7 @@ export default function AddRelativeSheet({ anchor, family, open, onClose, initia
   const [picked, setPicked] = useState(null);
   const [tab, setTab] = useState('new');
   const [unionId, setUnionId] = useState(null);
+  const [relation, setRelation] = useState('biological');
   const [q, setQ] = useState('');
   const everyone = useLiveQuery(() => listPersons(), []) || [];
   const hints = useLiveQuery(() => getNameHints(), []);
@@ -32,12 +33,15 @@ export default function AddRelativeSheet({ anchor, family, open, onClose, initia
       setPicked(ROLES.find((r) => r.key === initialRoleKey) || null);
       setTab('new');
       setUnionId(null);
+      setRelation('biological');
       setQ('');
     }
   }, [open, initialRoleKey]);
 
   const parentSlotsFull = family.parents.length >= 2;
   const needsUnionChoice = picked?.role === 'child' && family.unions.length > 1;
+  // childLink-creating roles can record how the link is made.
+  const relationChoice = ['father', 'mother', 'sibling', 'child'].includes(picked?.role);
 
   const directIds = useMemo(() => {
     const ids = new Set([anchor.id]);
@@ -66,6 +70,7 @@ export default function AddRelativeSheet({ anchor, family, open, onClose, initia
     try {
       const person = await addRelative(anchor.id, picked.role, subject, {
         unionId: (picked.role === 'spouse' ? targetUnionId : unionId) || undefined,
+        relation: relationChoice ? relation : undefined,
       });
       if (targetUnion && targetUnion.children.length > 0) {
         toast(
@@ -138,6 +143,39 @@ export default function AddRelativeSheet({ anchor, family, open, onClose, initia
               </button>
             ))}
           </div>
+
+          {relationChoice && (
+            <div className="mb-4">
+              <span className="label-caps mb-1.5 block">Connection</span>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  ['biological', 'By birth'],
+                  ['adoptive', 'Adopted'],
+                  ['step', 'Step'],
+                ].map(([v, label]) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setRelation(v)}
+                    className={`rounded-full border px-3 py-1.5 text-[13.5px] font-medium transition-colors ${
+                      relation === v
+                        ? 'border-accent bg-accent-soft text-accent-deep'
+                        : 'border-line bg-card text-ink-soft'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {relation !== 'biological' && (
+                <p className="mt-1.5 text-[12px] leading-snug text-ink-faint">
+                  {picked.role === 'father' || picked.role === 'mother'
+                    ? `Records ${anchor.name} as their ${relation === 'adoptive' ? 'adopted' : 'step'} child.`
+                    : `Shown with an “${relation === 'adoptive' ? 'adopted' : 'step'}” chip wherever they appear.`}
+                </p>
+              )}
+            </div>
+          )}
 
           {needsUnionChoice && (
             <div className="mb-4">

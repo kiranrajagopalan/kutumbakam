@@ -69,6 +69,11 @@ people are related, in Tulu and English.
   (`removePartnerFromUnion` / `removeChildLink`; emptied container unions
   swept). Half-sibling rows are not unlinkable from a sibling's page — remove
   them as the shared parent's child, where the meaning is unambiguous.
+  **Closing sprint (12 Jun 2026)**: relation choice (By birth / Adopted /
+  Step) in the add-relative flow for parent/sibling/child roles — adoption
+  and step links were modelled and rendered from day 1 but not enterable
+  until now (`ensureParentUnion` upgrades the anchor's own link when asked,
+  never downgrades to biological).
 - **M2 — Tree view** (core shipped 10 Jun 2026): whole-family zoomable/pannable SVG
   tree at `#/tree` — custom layout (see above), pinch/wheel/drag, fit button,
   tap-select with info card, self-ring, extended-family nodes dimmed + hideable
@@ -114,10 +119,21 @@ people are related, in Tulu and English.
   (chosen over stepping-stones on preview). Surfaces: Relation section on the
   person page; tree selection card's kin label upgraded to the chain. 30 node
   assertions over the demo in `scripts/test-relationship.mjs`
-  (`node scripts/test-relationship.mjs`). **Remaining for M3.1**: Tulu term
-  table (terms from Kiran), shareable explanation card.
+  (`node scripts/test-relationship.mjs`). **Share card shipped (12 Jun
+  2026)**: "Share as card" on the Relation section renders a 1080×1080
+  paper-&-ink image (names + chain only — contact info can't appear by
+  construction; `src/lib/relationCard.js`), shared via `navigator.share`
+  files (kept synchronous inside the tap gesture) with a download fallback.
+  **Remaining for M3.1**: Tulu term table — waiting on Kiran's words; the
+  `tcy` slot table is ready.
 - **M4 — Sharing v1**: read-only published snapshot (sensitive class stripped) behind an
-  unguessable URL; GEDCOM export.
+  unguessable URL. **GEDCOM export shipped (12 Jun 2026)**: 5.5.1
+  LINEAGE-LINKED from `src/lib/gedcom.js` (Settings → "Export for other
+  family-tree tools") — NAME/NICK/SEX/BIRT incl. ABT + PLAC/DEAT/OCCU/RESI/
+  NOTE with CONT-CONC, FAMC with PEDI adopted (and a deliberately
+  non-standard `PEDI step`), FAM with HUSB/WIFE/MARR/DIV/CHIL; the sensitive
+  class never appears — the builder doesn't know those fields exist.
+  Structural tests: `node scripts/test-gedcom.mjs`.
 - **M5 — Multi-user (only if needed)**: hosted backend, tree-level roles
   (Owner/Editor/Viewer), suggest-mode edits with approval, audit log, living-people
   privacy defaults, relationship-distance field visibility. DPDP applies here — consent

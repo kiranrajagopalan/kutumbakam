@@ -3,6 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import Sheet from './Sheet.jsx';
 import PersonRow from './PersonRow.jsx';
 import { getRelationship, getSelf, listPersons, getNameHints } from '../db/repo.js';
+import { renderRelationCard, dataUrlToFile } from '../lib/relationCard.js';
+import { toast } from '../lib/toast.js';
 
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
@@ -86,7 +88,34 @@ export default function HowRelated({ person }) {
                 +{result.more} more {result.more === 1 ? 'way' : 'ways'}
               </p>
             )}
-            <div className="pb-1" />
+            <div className="flex justify-end pb-0.5 pr-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  // Synchronous end-to-end so navigator.share stays inside
+                  // the tap gesture (Safari drops late share sheets).
+                  const url = renderRelationCard({
+                    targetName: person.name,
+                    anchorFirst: (anchor?.name || '').split(/\s+/)[0],
+                    primaryBody: result.primary.body,
+                    alsoBodies: result.also.map((r) => r.body),
+                  });
+                  const file = dataUrlToFile(url, `kutumbakam-${person.name.split(/\s+/)[0]}.png`);
+                  if (navigator.share) {
+                    navigator.share({ files: [file] }).catch(() => {});
+                  } else {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = file.name;
+                    a.click();
+                    toast('Card saved as an image');
+                  }
+                }}
+                className="rounded-full px-2.5 py-1.5 text-[12.5px] font-semibold text-accent-deep transition-colors hover:bg-accent-soft/40"
+              >
+                Share as card
+              </button>
+            </div>
           </>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { db } from './db.js';
 import { blankPerson } from './repo.js';
+import { buildGedcom } from '../lib/gedcom.js';
 
 const blobToDataUrl = (blob) =>
   new Promise((res, rej) => {
@@ -48,6 +49,27 @@ export async function downloadExport(mode) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
   return data.persons.length;
+}
+
+// GEDCOM 5.5.1 — the standard interchange format other family-tree tools
+// read. Share-class rules apply: sensitive fields never leave (the builder
+// itself doesn't know they exist).
+export async function downloadGedcom() {
+  const [persons, unions, childLinks] = await Promise.all([
+    db.persons.toArray(),
+    db.unions.toArray(),
+    db.childLinks.toArray(),
+  ]);
+  const text = buildGedcom({ persons, unions, childLinks });
+  const blob = new Blob([text], { type: 'text/plain' });
+  const d = new Date();
+  const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `kutumbakam-${stamp}.ged`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+  return persons.length;
 }
 
 // Reads a picked backup File and imports it, with failure messages a human

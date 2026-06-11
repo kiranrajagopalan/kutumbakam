@@ -126,12 +126,21 @@ export async function getParentUnion(personId) {
   return union ? { union, link } : null;
 }
 
-async function ensureParentUnion(personId) {
+// relation describes the person's link to this parent couple (biological /
+// adoptive / step). A non-biological choice upgrades an existing link —
+// "add adoptive father" after the fact — but the biological default never
+// downgrades one.
+async function ensureParentUnion(personId, relation = 'biological') {
   const existing = await getParentUnion(personId);
-  if (existing) return existing.union;
+  if (existing) {
+    if (relation !== 'biological' && existing.link.relation !== relation) {
+      await db.childLinks.update(existing.link.id, { relation });
+    }
+    return existing.union;
+  }
   const union = { id: uid(), partnerIds: [], status: '', marriageYear: null, createdAt: now() };
   await db.unions.add(union);
-  await db.childLinks.add({ id: uid(), childId: personId, unionId: union.id, relation: 'biological' });
+  await db.childLinks.add({ id: uid(), childId: personId, unionId: union.id, relation });
   return union;
 }
 
@@ -156,7 +165,7 @@ export async function addRelative(anchorId, role, subject, opts = {}) {
     if (person.id === anchorId) throw new Error('Cannot relate a person to themselves');
 
     if (role === 'father' || role === 'mother') {
-      const union = await ensureParentUnion(anchorId);
+      const union = await ensureParentUnion(anchorId, opts.relation || 'biological');
       if (!union.partnerIds.includes(person.id)) {
         if (union.partnerIds.length >= 2) throw new Error('Both parents are already recorded');
         const patch = { partnerIds: [...union.partnerIds, person.id] };

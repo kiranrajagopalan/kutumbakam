@@ -4,7 +4,7 @@ import Mark from '../components/Mark.jsx';
 import ConfirmSheet from '../components/ConfirmSheet.jsx';
 import { ChevronLeft } from '../components/icons.jsx';
 import { countPersons } from '../db/repo.js';
-import { downloadExport, importFile, wipeAll, isDemoData } from '../db/exportImport.js';
+import { downloadExport, downloadGedcom, importFile, wipeAll, isDemoData } from '../db/exportImport.js';
 import { loadDemo } from '../db/seed.js';
 import { toast } from '../lib/toast.js';
 import { nav, back } from '../lib/router.js';
@@ -81,6 +81,14 @@ export default function Settings() {
           onClick={async () => {
             const n = await downloadExport('share');
             toast(`Shareable copy saved — ${n} people, contact info left out`);
+          }}
+        />
+        <Row
+          title="Export for other family-tree tools"
+          caption="GEDCOM — the standard format genealogy apps read. Phone numbers and private notes are never included."
+          onClick={async () => {
+            const n = await downloadGedcom();
+            toast(`GEDCOM saved — ${n} people`);
           }}
         />
         <Row
