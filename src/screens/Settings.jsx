@@ -1,9 +1,10 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import Mark from '../components/Mark.jsx';
+import ConfirmSheet from '../components/ConfirmSheet.jsx';
 import { ChevronLeft } from '../components/icons.jsx';
 import { countPersons } from '../db/repo.js';
-import { downloadExport, importData, wipeAll, isDemoData } from '../db/exportImport.js';
+import { downloadExport, importFile, wipeAll, isDemoData } from '../db/exportImport.js';
 import { loadDemo } from '../db/seed.js';
 import { toast } from '../lib/toast.js';
 import { nav, back } from '../lib/router.js';
@@ -34,25 +35,21 @@ export default function Settings() {
   const count = useLiveQuery(() => countPersons(), []) ?? 0;
   const demo = useLiveQuery(() => isDemoData(), []) ?? false;
   const fileRef = useRef(null);
+  const [confirm, setConfirm] = useState(null);
+  const [importError, setImportError] = useState(null);
 
   async function onImportFile(e) {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
+    setImportError(null);
     try {
-      if (count > 0) {
-        const ok = window.confirm(
-          `Importing replaces the ${count} people currently in the tree. Continue?`,
-        );
-        if (!ok) return;
-      }
-      const json = JSON.parse(await file.text());
-      const n = await importData(json);
+      const n = await importFile(file);
       toast(`Imported ${n} people`);
       nav('/');
     } catch (err) {
-      toast(err.message, 'error');
+      setImportError(err.message);
     }
-    e.target.value = '';
   }
 
   return (
@@ -89,8 +86,36 @@ export default function Settings() {
         <Row
           title="Import a backup"
           caption="Replaces everything currently in the tree."
-          onClick={() => fileRef.current?.click()}
+          onClick={() => {
+            setImportError(null);
+            if (count > 0) {
+              setConfirm({
+                title: 'Replace the current tree?',
+                message: `Importing replaces the ${count} people currently in the tree with the file's contents. Export a backup first if you haven't.`,
+                confirmLabel: 'Choose file & replace',
+                danger: true,
+                action: () => fileRef.current?.click(),
+              });
+            } else {
+              fileRef.current?.click();
+            }
+          }}
         />
+        {importError && (
+          <div className="mx-1.5 mb-1.5 flex items-start gap-2 rounded-[13px] border border-[#d9b6ae] bg-accent-soft/50 px-3 py-2.5">
+            <p className="flex-1 text-[13px] leading-snug text-accent-deep">
+              <span className="font-semibold">Import failed.</span> {importError}
+            </p>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={() => setImportError(null)}
+              className="text-[13px] font-semibold text-accent-deep/70"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={onImportFile} />
       </Card>
 
@@ -98,14 +123,23 @@ export default function Settings() {
         <Row
           title={demo ? 'Demo family is loaded' : 'Load the demo family'}
           caption="A fictional 22-person family showing remarriage, adoption and an in-family marriage."
-          onClick={async () => {
+          onClick={() => {
+            const run = async () => {
+              const n = await loadDemo();
+              toast(`Demo family loaded — ${n} people`);
+              nav('/');
+            };
             if (count > 0 && !demo) {
-              const ok = window.confirm(`This replaces the ${count} people currently in the tree. Continue?`);
-              if (!ok) return;
+              setConfirm({
+                title: 'Replace with the demo?',
+                message: `This replaces the ${count} people currently in the tree with the fictional demo family.`,
+                confirmLabel: 'Load demo',
+                danger: true,
+                action: run,
+              });
+            } else {
+              run();
             }
-            const n = await loadDemo();
-            toast(`Demo family loaded — ${n} people`);
-            nav('/');
           }}
         />
       </Card>
@@ -115,12 +149,18 @@ export default function Settings() {
           danger
           title="Erase everything"
           caption="Removes every person from this device. Export a backup first."
-          onClick={async () => {
-            const ok = window.confirm('Erase every person from this device? This cannot be undone.');
-            if (!ok) return;
-            await wipeAll();
-            toast('All data erased');
-          }}
+          onClick={() =>
+            setConfirm({
+              title: 'Erase everything?',
+              message: 'Every person on this device will be removed. This cannot be undone — export a backup first if in doubt.',
+              confirmLabel: 'Erase everything',
+              danger: true,
+              action: async () => {
+                await wipeAll();
+                toast('All data erased');
+              },
+            })
+          }
         />
       </Card>
 
@@ -131,9 +171,19 @@ export default function Settings() {
           v{__APP_VERSION__} · local-first — your family stays on your device
         </p>
         <p className="mt-3 max-w-[32ch] text-[12.5px] leading-relaxed text-ink-faint">
-          Coming next: the tree view · “how are we related” · Tulu kinship terms · careful sharing
+          Coming next: “how are we related” · Tulu kinship terms · careful sharing
         </p>
       </div>
+
+      <ConfirmSheet
+        open={!!confirm}
+        onClose={() => setConfirm(null)}
+        title={confirm?.title}
+        message={confirm?.message}
+        confirmLabel={confirm?.confirmLabel}
+        danger={confirm?.danger}
+        onConfirm={() => confirm?.action()}
+      />
     </div>
   );
 }

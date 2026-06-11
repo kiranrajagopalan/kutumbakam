@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import Avatar from '../components/Avatar.jsx';
+import ConfirmSheet from '../components/ConfirmSheet.jsx';
 import { ChevronLeft, Camera } from '../components/icons.jsx';
 import {
   TextField,
@@ -29,6 +30,7 @@ export default function PersonForm({ id }) {
   const person = useLiveQuery(() => getPerson(id), [id]);
   const [form, setForm] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const fileRef = useRef(null);
 
   useEffect(() => {
@@ -64,10 +66,6 @@ export default function PersonForm({ id }) {
   }
 
   async function remove() {
-    const ok = window.confirm(
-      `Remove ${person.name} from the tree?\n\nTheir connections to parents, partners and children will also be removed. This cannot be undone.`,
-    );
-    if (!ok) return;
     await deletePerson(id);
     toast(`${person.name} removed`);
     nav('/');
@@ -194,10 +192,20 @@ export default function PersonForm({ id }) {
       </Group>
 
       <div className="mt-10">
-        <Button kind="danger" className="w-full" onClick={remove}>
+        <Button kind="danger" className="w-full" onClick={() => setConfirmRemove(true)}>
           Remove {person.name} from the tree…
         </Button>
       </div>
+
+      <ConfirmSheet
+        open={confirmRemove}
+        onClose={() => setConfirmRemove(false)}
+        title={`Remove ${person.name}?`}
+        message="Their connections to parents, partners and children will also be removed. This cannot be undone."
+        confirmLabel="Remove from the tree"
+        danger
+        onConfirm={remove}
+      />
 
       <div className="sticky bottom-0 -mx-4 mt-6 bg-paper/95 px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3 backdrop-blur-sm">
         <Button onClick={save} className="w-full">

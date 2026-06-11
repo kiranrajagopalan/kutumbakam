@@ -50,6 +50,30 @@ export async function downloadExport(mode) {
   return data.persons.length;
 }
 
+// Reads a picked backup File and imports it, with failure messages a human
+// can act on. iOS quirk this guards against: files still in iCloud arrive
+// EMPTY from the picker.
+export async function importFile(file) {
+  let text;
+  try {
+    text = await file.text();
+  } catch {
+    throw new Error('The file could not be read from storage. Try picking it again.');
+  }
+  if (!text || !text.trim()) {
+    throw new Error(
+      'The file arrived empty. If it lives in iCloud, open it once in the Files app so it downloads, then try importing again.',
+    );
+  }
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error('That file is not readable as a backup — it may be incomplete or not a Kutumbakam export.');
+  }
+  return importData(json);
+}
+
 // Replaces the whole database with the file's contents (v1 semantics —
 // merging two trees is a later milestone).
 export async function importData(json) {

@@ -3,7 +3,7 @@ import Mark from '../components/Mark.jsx';
 import { TextField, GenderSeg, Button } from '../components/fields.jsx';
 import { createPerson } from '../db/repo.js';
 import { loadDemo } from '../db/seed.js';
-import { importData } from '../db/exportImport.js';
+import { importFile } from '../db/exportImport.js';
 import { toast } from '../lib/toast.js';
 import { nav } from '../lib/router.js';
 
@@ -11,6 +11,7 @@ export default function Onboarding() {
   const [mode, setMode] = useState('menu');
   const [name, setName] = useState('');
   const [gender, setGender] = useState('');
+  const [importError, setImportError] = useState(null);
   const fileRef = useRef(null);
 
   async function startSelf() {
@@ -24,16 +25,16 @@ export default function Onboarding() {
 
   async function onImportFile(e) {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
+    setImportError(null);
     try {
-      const json = JSON.parse(await file.text());
-      const n = await importData(json);
+      const n = await importFile(file);
       toast(`Imported ${n} people`);
       nav('/');
     } catch (err) {
-      toast(err.message, 'error');
+      setImportError(err.message);
     }
-    e.target.value = '';
   }
 
   return (
@@ -64,6 +65,21 @@ export default function Onboarding() {
             Import a backup
           </Button>
           <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={onImportFile} />
+          {importError && (
+            <div className="flex items-start gap-2 rounded-[13px] border border-[#d9b6ae] bg-accent-soft/50 px-3 py-2.5">
+              <p className="flex-1 text-[13px] leading-snug text-accent-deep">
+                <span className="font-semibold">Import failed.</span> {importError}
+              </p>
+              <button
+                type="button"
+                aria-label="Dismiss"
+                onClick={() => setImportError(null)}
+                className="text-[13px] font-semibold text-accent-deep/70"
+              >
+                ✕
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="mt-9 flex flex-col gap-4">
