@@ -4,6 +4,7 @@ import { db } from './db.js';
 import { compareBirth } from '../lib/format.js';
 import { classifyByKinship } from '../lib/kinship.js';
 import { computeNameHints } from '../lib/disambiguate.js';
+import { describeRelationship } from '../lib/relationship.js';
 
 const now = () => Date.now();
 const uid = () => crypto.randomUUID();
@@ -71,6 +72,18 @@ export async function getTreeData() {
   const classes = self ? classifyByKinship({ persons, unions, childLinks }, self.id) : null;
   const hints = computeNameHints({ persons, unions, childLinks });
   return { persons, unions, childLinks, self, classes, hints };
+}
+
+// "How are these two related?" — spelled chains from the anchor's point of
+// view, plus the anchor person for labelling.
+export async function getRelationship(anchorId, targetId) {
+  const [persons, unions, childLinks] = await Promise.all([
+    db.persons.toArray(),
+    db.unions.toArray(),
+    db.childLinks.toArray(),
+  ]);
+  const anchor = persons.find((p) => p.id === anchorId) || null;
+  return { anchor, result: describeRelationship({ persons, unions, childLinks }, anchorId, targetId) };
 }
 
 // Just the same-name hints (for screens that don't need the whole graph).

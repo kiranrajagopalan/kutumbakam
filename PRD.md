@@ -82,9 +82,23 @@ people are related, in Tulu and English.
   see-on-tree; `#/tree/:id` centres with card open and auto-unfolds the
   target's capsule). **Remaining for M2.2**: re-skin under Kiran's visual
   brief.
-- **M3 — "How are we related"**: BFS over the kinship graph, multiple paths when they
-  exist (cross-cousin marriages make people related twice), plain-English chain +
-  pluggable Tulu term table; shareable explanation card.
+- **M3 — "How are we related"** (English engine shipped 11 Jun 2026): pure-graph
+  path engine in `src/lib/relationship.js` — walks a bipartite person↔union graph
+  (each step crosses exactly one union; forbidding union revisits canonicalizes
+  paths, so "wife" can never be respelled "child's mother"), collapses
+  parent-then-child into half-siblings, renders flowing chains ("your mother's
+  younger brother's daughter") with elder/younger from dates or `birthOrder`,
+  adopted/step/former qualifiers, and term collapses (grandparent runs in code;
+  in-law n-grams in `src/lib/kinshipTerms.js`, whose key space is the Tulu slot
+  table Kiran will fill — sibling-in-law chains deliberately stay spelled out).
+  Decisions (11 Jun 2026): **any two people from day one** (person page defaults
+  to "from You", a chip re-anchors to anyone), **closest chain first + "also"
+  alternates** (distant rewordings counted, not listed), **flowing phrasing**
+  (chosen over stepping-stones on preview). Surfaces: Relation section on the
+  person page; tree selection card's kin label upgraded to the chain. 30 node
+  assertions over the demo in `scripts/test-relationship.mjs`
+  (`node scripts/test-relationship.mjs`). **Remaining for M3.1**: Tulu term
+  table (terms from Kiran), shareable explanation card.
 - **M4 — Sharing v1**: read-only published snapshot (sensitive class stripped) behind an
   unguessable URL; GEDCOM export.
 - **M5 — Multi-user (only if needed)**: hosted backend, tree-level roles

@@ -10,7 +10,9 @@ const P = (id, fields) => ({ ...blankPerson(), id, createdAt: 1, updatedAt: 1, .
 const U = (id, partnerIds, fields = {}) => ({ id, partnerIds, status: 'married', marriageYear: null, createdAt: 1, ...fields });
 const L = (id, childId, unionId, relation = 'biological') => ({ id, childId, unionId, relation });
 
-export async function loadDemo() {
+// The raw demo graph, as pure data — loadDemo() writes it to Dexie, and the
+// node-side relationship tests read it directly.
+export function demoGraph() {
   const persons = [
     // Paternal grandparents' generation
     P('p-achutha', { name: 'Achutha', gender: 'male', isAlive: false, birthYear: 1921, deathYear: 1988, nativePlace: 'Kudla', occupation: 'Areca trader' }),
@@ -76,6 +78,11 @@ export async function loadDemo() {
     L('l-tanvi', 'p-tanvi', 'u-prakash-asha'),
   ];
 
+  return { persons, unions, childLinks };
+}
+
+export async function loadDemo() {
+  const { persons, unions, childLinks } = demoGraph();
   await db.transaction('rw', db.persons, db.unions, db.childLinks, db.meta, async () => {
     await Promise.all([db.persons.clear(), db.unions.clear(), db.childLinks.clear()]);
     await db.persons.bulkAdd(persons);

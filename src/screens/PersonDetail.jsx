@@ -4,6 +4,7 @@ import Avatar from '../components/Avatar.jsx';
 import PersonRow from '../components/PersonRow.jsx';
 import AddRelativeSheet from '../components/AddRelativeSheet.jsx';
 import UnionSheet from '../components/UnionSheet.jsx';
+import HowRelated from '../components/HowRelated.jsx';
 import { ChevronLeft, Pencil, Plus, Lock, TreeGlyph, ListGlyph } from '../components/icons.jsx';
 import { getPerson, getImmediateFamily, getNameHints } from '../db/repo.js';
 import { lifeSpan, ageOf, yearLabel } from '../lib/format.js';
@@ -132,6 +133,8 @@ export default function PersonDetail({ id }) {
           ))}
         </div>
       )}
+
+      <HowRelated person={person} />
 
       <Section
         label="Parents"

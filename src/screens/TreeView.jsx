@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { getTreeData } from '../db/repo.js';
 import { layoutFamilyTree, busPathData, AVATAR_Y, DOT_R } from '../lib/treeData.js';
 import { branchMembers, inLawClusters } from '../lib/kinship.js';
+import { describeRelationship } from '../lib/relationship.js';
 import { toneFor, initialsOf, mixHex } from '../lib/avatar.js';
 import { photoUrlFor } from '../lib/photos.js';
 import { lifeSpan } from '../lib/format.js';
@@ -202,6 +203,14 @@ export default function TreeView({ focusId = null }) {
     return new Set(e ? [...e.parentFams, ...e.ownFams] : []);
   }, [selectedId, layout]);
   const connOpacity = (famId) => (traced && !traced.has(famId) ? 0.35 : 1);
+
+  // The selected person's chain from "you" — the card's kin label, upgraded
+  // to the actual relationship. Memoized: TreeView re-renders on every pan.
+  const selectedRel = useMemo(() => {
+    if (!selectedId || !data?.self || selectedId === data.self.id) return null;
+    const r = describeRelationship(data, data.self.id, selectedId);
+    return r.kind === 'related' ? `Your ${r.primary.body}` : null;
+  }, [selectedId, data]);
 
   // Folded capsules to draw (skipped in branch view — branches exclude
   // in-law families by definition).
@@ -613,7 +622,11 @@ export default function TreeView({ focusId = null }) {
                 )}
               </p>
               <p className="tnum truncate text-[12.5px] text-ink-soft">
-                {[data.hints?.get(selected.id), lifeSpan(selected), selectedKin && KIN_LABEL[selectedKin]]
+                {[
+                  data.hints?.get(selected.id),
+                  lifeSpan(selected),
+                  selectedRel || (selectedKin && KIN_LABEL[selectedKin]),
+                ]
                   .filter(Boolean)
                   .join('  ·  ')}
               </p>
