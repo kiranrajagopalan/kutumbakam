@@ -41,9 +41,13 @@ people are related, in Tulu and English.
   generation-layered layout (BFS generations → couple-chain units → barycenter
   sweeps → bus connectors); handles remarriage chains, marriage cycles, adoption
   (dashed risers), divorce (dashed spouse lines).
-- **Visual direction**: interim "paper & ink" token system (Fraunces + Albert Sans,
-  henna accent). Kiran will brief the real art direction; re-skin = token swap in
-  `src/index.css` `@theme`.
+- **Visual direction — ratified 12 Jun 2026**: the "paper & ink" system is final;
+  canonical tokens + styleguide live at `../paper-ink/`. Visual changes go through
+  the tokens in `src/index.css` `@theme`.
+- **Multi-user direction — locked 12 Jun 2026, build deferred**: hosted live tree
+  chosen over file-passing packets — contributor friction is the binding constraint
+  (the first contributor is a non-technical elder; her first five minutes decide
+  adoption). Full locked design in M5 below.
 
 ## Data model (`src/db/`)
 - `persons` — identity, photo (small webp Blob), fuzzy years (`birthYear` + `birthApprox`),
@@ -126,18 +130,53 @@ people are related, in Tulu and English.
   files (kept synchronous inside the tap gesture) with a download fallback.
   **Remaining for M3.1**: Tulu term table — waiting on Kiran's words; the
   `tcy` slot table is ready.
-- **M4 — Sharing v1**: read-only published snapshot (sensitive class stripped) behind an
-  unguessable URL. **GEDCOM export shipped (12 Jun 2026)**: 5.5.1
+- **M4 — Sharing v1**: the read-only published family view is now the logged-out
+  face of M5's server (decided 12 Jun 2026), thin-for-living applied — not a
+  separate static snapshot. **GEDCOM export shipped (12 Jun 2026)**: 5.5.1
   LINEAGE-LINKED from `src/lib/gedcom.js` (Settings → "Export for other
   family-tree tools") — NAME/NICK/SEX/BIRT incl. ABT + PLAC/DEAT/OCCU/RESI/
   NOTE with CONT-CONC, FAMC with PEDI adopted (and a deliberately
   non-standard `PEDI step`), FAM with HUSB/WIFE/MARR/DIV/CHIL; the sensitive
   class never appears — the builder doesn't know those fields exist.
   Structural tests: `node scripts/test-gedcom.mjs`.
-- **M5 — Multi-user (only if needed)**: hosted backend, tree-level roles
-  (Owner/Editor/Viewer), suggest-mode edits with approval, audit log, living-people
-  privacy defaults, relationship-distance field visibility. DPDP applies here — consent
-  and delete/export are mandatory.
+- **M5 — Multi-user (design locked 12 Jun 2026; build deferred until the real
+  family is documented)**: hosted live tree, chosen over file-passing packets.
+  - **Architecture**: the app stays an offline-first PWA — Dexie remains the working
+    copy on every device; a thin custom sync service (lean: Cloudflare Workers + D1;
+    free tier fits family scale and doesn't idle-pause) holds the canonical graph,
+    carries changes, and enforces the rules below. Server loss = lost sync, never
+    lost data. Field-level latest-wins + append-only audit log + undo. Off-the-shelf
+    sync (e.g. Dexie Cloud) rejected: territory/suggestions/thinning are app
+    semantics a generic object-sync can't express.
+  - **Sensitive class never syncs**: `phone` + `privateNotes` stay only on the
+    device of whoever recorded them — the server never sees those fields (day-one
+    rule, unchanged).
+  - **Identity — node-anchored claim links, no passwords**: an editor must first
+    exist as a person in the tree; the invite is issued from their profile. The
+    link is a single-use claim: the first device to open it becomes that person,
+    then the link dies (credential lives on-device, never in the URL afterwards).
+    Unclaimed links expire (~7 days). Claiming confirms gently ("Are you X, Y's
+    mother?") to catch mis-sends. Owner revokes/re-issues per device (new phone =
+    new link); claimed devices are listed on the profile. Accepted residual: a
+    claimed device IS that person — same trust level as their WhatsApp; blast
+    radius is bounded by territory; attribution is the tripwire.
+  - **Governance (from the family-dynamics analysis, 12 Jun 2026)**: territory =
+    the branch hanging off your node (family-lens computation). Direct writes
+    inside your branch — an elder's bulk-fill must never show "pending" (approval
+    queues are status transactions; approve boundaries, never facts). Suggest-mode
+    everywhere else: the branch's steward confirms in a tap. Joining two branches
+    is a handshake ratified by the other side's steward — both houses confirm an
+    alliance. Stewards delegate within their own branch by sending invites; the
+    owner holds global revoke and honors take-me-out requests (DPDP: likely
+    personal/domestic exemption — honored regardless). Nothing hard-deletes (links
+    removed, never people); every change is attributed — credit is the currency
+    kin-keepers are paid in, and receipts de-escalate disputes.
+  - **Visibility — thin-for-living on every shared surface**: living people outside
+    the viewer's own branch render plain — no divorce/step/"former" qualifiers, on
+    nodes AND in the relationship-chain renderer; deceased people render fully.
+  - **Build order when un-paused**: sync core + claim links (owner's device first)
+    → territory/suggestions/approvals inbox → published logged-out view → onboard
+    the first steward (mother-in-law, Niyati's side).
 
 ## Privacy stance (Indian context — why local-first)
 A relationship graph + contact info is caste-inference, matrimonial-vetting and

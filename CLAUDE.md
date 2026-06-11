@@ -1,8 +1,11 @@
 # Kutumbakam — project instructions
 
 Local-first family tree PWA. React 19 + Vite 6 + Tailwind 4 + vite-plugin-pwa +
-Dexie (IndexedDB). No backend, no analytics, no accounts — by design. See PRD.md for
-decisions, data model and milestones.
+Dexie (IndexedDB). No backend, no analytics, no accounts today — by design. The
+M5 multi-user direction is locked but unbuilt (12 Jun 2026: thin hosted sync
+service + node-anchored claim links; the app stays offline-first) — read PRD.md
+M5 before touching anything sharing-related. PRD.md holds decisions, data model
+and milestones.
 
 ## Rules
 - **All Dexie access stays inside `src/db/`** — screens/components import from
@@ -17,8 +20,9 @@ decisions, data model and milestones.
   outside tokens; known token debt (hardcoded #fff8f3, #d9b6ae, 13px/22px radii)
   is listed in `../paper-ink/README.md` — adopt the named tokens at next touch.
 - **Kinship correctness data matters**: `birthOrder`, union order, `relation` on
-  childLinks, gender — the future "how are we related" engine (English + Tulu) depends
-  on them. Don't drop these fields in forms or migrations.
+  childLinks, gender — the "how are we related" engine (`src/lib/relationship.js`,
+  English live; Tulu pending Kiran's words in `src/lib/kinshipTerms.js`) depends on
+  them. Don't drop these fields in forms or migrations.
 - Demo seed (`src/db/seed.js`) is fictional — keep it that way; never seed real family
   members.
 - Dev server: registered as `kutumbakam` in repo-wide `.claude/launch.json`, port 5180.
