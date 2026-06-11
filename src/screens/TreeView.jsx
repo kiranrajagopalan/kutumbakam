@@ -81,7 +81,9 @@ function TreeNode({ n, kin, selected, hint }) {
             dy="0.36em"
             textAnchor="middle"
             fill={mixHex(tone.fg, PAPER, Math.max(tInitials, !p.isAlive ? 0.2 : 0))}
-            style={{ font: '600 15px var(--font-display)' }}
+            fontSize="15"
+            fontWeight="600"
+            style={{ fontFamily: 'var(--font-display)' }}
           >
             {initialsOf(p.name)}
           </text>
@@ -91,7 +93,9 @@ function TreeNode({ n, kin, selected, hint }) {
         y={AVATAR_Y + AV_R + 17}
         textAnchor="middle"
         fill={mixHex(INK, PAPER, tText)}
-        style={{ font: '500 12.5px var(--font-body)' }}
+        fontSize="12.5"
+        fontWeight="500"
+        style={{ fontFamily: 'var(--font-body)' }}
       >
         {label}
       </text>
@@ -100,7 +104,9 @@ function TreeNode({ n, kin, selected, hint }) {
           y={AVATAR_Y + AV_R + 32}
           textAnchor="middle"
           fill={mixHex(INK_SOFT, PAPER, tText)}
-          style={{ font: '400 10.5px var(--font-body)', fontVariantNumeric: 'tabular-nums' }}
+          fontSize="10.5"
+          fontWeight="400"
+          style={{ fontFamily: 'var(--font-body)', fontVariantNumeric: 'tabular-nums' }}
         >
           {sub}
         </text>
@@ -292,6 +298,21 @@ export default function TreeView({ focusId = null }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, branchRootId]);
 
+  // Repaint nudge when the tab/app comes back to the foreground — flushes
+  // any stale iOS WebKit raster tiles (glyphs dropped while backgrounded).
+  useEffect(() => {
+    const nudge = () => setView((v) => ({ ...v, x: v.x + 0.001 }));
+    const onVis = () => {
+      if (document.visibilityState === 'visible') nudge();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('pageshow', nudge);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('pageshow', nudge);
+    };
+  }, []);
+
   // Wheel zoom (non-passive so we can preventDefault page scroll).
   useEffect(() => {
     const el = wrapRef.current;
@@ -416,7 +437,10 @@ export default function TreeView({ focusId = null }) {
       onPointerCancel={onPointerUp}
     >
       {layout && (
-        <svg className="size-full">
+        // textRendering + translateZ(0): hardening against iOS WebKit's
+        // tile-rasterizer dropping individual SVG text glyphs under pan/zoom
+        // transforms (text invisible until a repaint — seen on iPhone only).
+        <svg className="size-full" textRendering="geometricPrecision" style={{ transform: 'translateZ(0)' }}>
           <defs>
             <clipPath id="kutumbakam-av">
               <circle cx="0" cy={AVATAR_Y} r={AV_R} />

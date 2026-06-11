@@ -167,8 +167,8 @@ export default function Settings() {
       <div className="mt-10 flex flex-col items-center gap-2 text-center">
         <Mark className="size-9" />
         <p className="font-display text-[16px] font-semibold">Kutumbakam</p>
-        <p className="text-[12.5px] text-ink-faint">
-          v{__APP_VERSION__} · local-first — your family stays on your device
+        <p className="tnum text-[12.5px] text-ink-faint">
+          v{__APP_VERSION__} · {__BUILD_SHA__} · local-first — your family stays on your device
         </p>
         <p className="mt-3 max-w-[32ch] text-[12.5px] leading-relaxed text-ink-faint">
           Coming next: “how are we related” · Tulu kinship terms · careful sharing
