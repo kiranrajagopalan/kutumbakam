@@ -73,9 +73,15 @@ people are related, in Tulu and English.
   removed). Tap-to-trace: selecting a person redraws their connector
   constellation in accent on top, rest dimmed to 35%. Crossing regression
   baseline on demo+2: 7.
-  **Remaining for M2.1**: single-branch view, collapse-capsules for in-law
-  branches, re-skin under Kiran's visual brief, name disambiguation for
-  repeated names.
+  **M2.1 shipped (11 Jun 2026)**: single-branch view (tree card → Branch →
+  descendants + married-in spouses, exit chip), in-law collapse capsules
+  ("Anupam's family ▸ N", folded by default, tap to unfold, fold/unfold-all
+  pill, Fold action on extended cards), same-name disambiguation (s/o-d/o
+  parent reference, fallback place — on list rows, tree node sublabels,
+  pickers, person-page rows), navigation jumps (person page → one-tap home +
+  see-on-tree; `#/tree/:id` centres with card open and auto-unfolds the
+  target's capsule). **Remaining for M2.2**: re-skin under Kiran's visual
+  brief.
 - **M3 — "How are we related"**: BFS over the kinship graph, multiple paths when they
   exist (cross-cousin marriages make people related twice), plain-English chain +
   pluggable Tulu term table; shareable explanation card.
