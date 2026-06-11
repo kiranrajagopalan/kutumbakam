@@ -131,6 +131,28 @@ function CapsuleNode({ cap }) {
   );
 }
 
+// A small heart at the midpoint of a partner connection — the one-glance
+// "these two are married" mark. The paper disc breaks the line around it
+// (same grammar as hops: a mark interrupts, a dot joins). Divorced unions
+// keep their dashed line and get the outline form.
+const HEART_D =
+  'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z';
+
+function HeartMark({ x, y, color, outline = false }) {
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <circle r="7" fill="var(--color-paper)" stroke="none" />
+      <path
+        d={HEART_D}
+        transform="scale(0.42) translate(-12 -12.2)"
+        fill={outline ? 'none' : color}
+        stroke={outline ? color : 'none'}
+        strokeWidth={outline ? 2.8 : 0}
+      />
+    </g>
+  );
+}
+
 function Pill({ children, onClick, active, ariaLabel }) {
   return (
     <button
@@ -162,6 +184,9 @@ export default function TreeView({ focusId = null }) {
   const ptrs = useRef(new Map());
   const gesture = useRef({ moved: false, lastX: 0, lastY: 0, lastDist: 0, lastMid: null, downPid: null, downCap: null });
   const focusPending = useRef(null);
+  // Set by fold/unfold actions: the next layout change keeps the user's
+  // current pan/zoom instead of refitting.
+  const preserveView = useRef(false);
 
   const clusters = useMemo(() => (data?.classes ? inLawClusters(data, data.classes) : []), [data]);
 
@@ -291,6 +316,10 @@ export default function TreeView({ focusId = null }) {
     const key = `${layout.size.width}x${layout.size.height}|${branchRootId || ''}`;
     if (key === lastViewKey.current) return;
     lastViewKey.current = key;
+    if (preserveView.current) {
+      preserveView.current = false;
+      return;
+    }
     if (branchRootId) {
       fitAll();
       return;
@@ -351,7 +380,8 @@ export default function TreeView({ focusId = null }) {
   };
 
   const onPointerDown = (e) => {
-    if (e.target.closest?.('button')) return; // buttons keep native click behaviour
+    // Buttons and the selection card keep native click behaviour.
+    if (e.target.closest?.('button, [data-card]')) return;
     ptrs.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const g = gesture.current;
     if (ptrs.current.size === 1) {
@@ -410,6 +440,10 @@ export default function TreeView({ focusId = null }) {
     }
     if (ptrs.current.size === 0 && !g.moved) {
       if (g.downCap) {
+        // Unfold AND treat it as selecting the family's anchor person —
+        // centre on them with the card open, so the tap visibly lands.
+        const c = clusters.find((cc) => cc.key === g.downCap);
+        if (c) focusPending.current = c.anchorId;
         setExpandedCaps(new Set([...expandedRef.current, g.downCap]));
       } else {
         setSelectedId(g.downPid && g.downPid !== selectedId ? g.downPid : null);
@@ -430,6 +464,7 @@ export default function TreeView({ focusId = null }) {
   const foldFamilyOf = (personId) => {
     const c = clusters.find((cc) => cc.members.has(personId));
     if (!c) return;
+    preserveView.current = true;
     const next = new Set(expandedRef.current);
     next.delete(c.key);
     setExpandedCaps(next);
@@ -477,30 +512,37 @@ export default function TreeView({ focusId = null }) {
               );
             })}
             {layout.spouseLines.map((l) => (
-              <line
-                key={l.famId}
-                x1={l.x1}
-                y1={l.y1}
-                x2={l.x2}
-                y2={l.y2}
-                stroke="var(--color-thread)"
-                strokeWidth="2"
-                strokeDasharray={l.dashed ? '5 4' : undefined}
-                opacity={connOpacity(l.famId)}
-              />
+              <g key={l.famId} opacity={connOpacity(l.famId)}>
+                <line
+                  x1={l.x1}
+                  y1={l.y1}
+                  x2={l.x2}
+                  y2={l.y2}
+                  stroke="var(--color-thread)"
+                  strokeWidth="2"
+                  strokeDasharray={l.dashed ? '5 4' : undefined}
+                />
+                <HeartMark
+                  x={(l.x1 + l.x2) / 2}
+                  y={(l.y1 + l.y2) / 2}
+                  color="var(--color-thread)"
+                  outline={!!l.dashed}
+                />
+              </g>
             ))}
             {layout.extraMarriageLines.map((l) => (
-              <line
-                key={`x-${l.famId}`}
-                x1={l.x1}
-                y1={l.y1}
-                x2={l.x2}
-                y2={l.y2}
-                stroke="var(--color-thread)"
-                strokeWidth="2"
-                strokeDasharray="5 4"
-                opacity={connOpacity(l.famId)}
-              />
+              <g key={`x-${l.famId}`} opacity={connOpacity(l.famId)}>
+                <line
+                  x1={l.x1}
+                  y1={l.y1}
+                  x2={l.x2}
+                  y2={l.y2}
+                  stroke="var(--color-thread)"
+                  strokeWidth="2"
+                  strokeDasharray="5 4"
+                />
+                <HeartMark x={(l.x1 + l.x2) / 2} y={(l.y1 + l.y2) / 2} color="var(--color-thread)" />
+              </g>
             ))}
             {traced &&
               layout.busses
@@ -528,31 +570,40 @@ export default function TreeView({ focusId = null }) {
               layout.spouseLines
                 .filter((l) => traced.has(l.famId))
                 .map((l) => (
-                  <line
-                    key={`hls-${l.famId}`}
-                    x1={l.x1}
-                    y1={l.y1}
-                    x2={l.x2}
-                    y2={l.y2}
-                    stroke="var(--color-accent)"
-                    strokeWidth="2.5"
-                    strokeDasharray={l.dashed ? '5 4' : undefined}
-                  />
+                  <g key={`hls-${l.famId}`}>
+                    <line
+                      x1={l.x1}
+                      y1={l.y1}
+                      x2={l.x2}
+                      y2={l.y2}
+                      stroke="var(--color-accent)"
+                      strokeWidth="2.5"
+                      strokeDasharray={l.dashed ? '5 4' : undefined}
+                    />
+                    <HeartMark
+                      x={(l.x1 + l.x2) / 2}
+                      y={(l.y1 + l.y2) / 2}
+                      color="var(--color-accent)"
+                      outline={!!l.dashed}
+                    />
+                  </g>
                 ))}
             {traced &&
               layout.extraMarriageLines
                 .filter((l) => traced.has(l.famId))
                 .map((l) => (
-                  <line
-                    key={`hlx-${l.famId}`}
-                    x1={l.x1}
-                    y1={l.y1}
-                    x2={l.x2}
-                    y2={l.y2}
-                    stroke="var(--color-accent)"
-                    strokeWidth="2.5"
-                    strokeDasharray="5 4"
-                  />
+                  <g key={`hlx-${l.famId}`}>
+                    <line
+                      x1={l.x1}
+                      y1={l.y1}
+                      x2={l.x2}
+                      y2={l.y2}
+                      stroke="var(--color-accent)"
+                      strokeWidth="2.5"
+                      strokeDasharray="5 4"
+                    />
+                    <HeartMark x={(l.x1 + l.x2) / 2} y={(l.y1 + l.y2) / 2} color="var(--color-accent)" />
+                  </g>
                 ))}
             {layout.nodes.map((n) => (
               <TreeNode
@@ -581,11 +632,10 @@ export default function TreeView({ focusId = null }) {
           {!branchRootId && clusters.length > 0 && (
             <Pill
               active={foldedCount === 0}
-              onClick={() =>
-                foldedCount > 0
-                  ? setExpandedCaps(new Set(clusters.map((c) => c.key)))
-                  : setExpandedCaps(new Set())
-              }
+              onClick={() => {
+                preserveView.current = true;
+                setExpandedCaps(foldedCount > 0 ? new Set(clusters.map((c) => c.key)) : new Set());
+              }}
               ariaLabel="Fold or unfold all in-law families"
             >
               {foldedCount > 0 ? `In-laws · ${foldedCount} folded` : 'In-laws shown'}
@@ -612,7 +662,14 @@ export default function TreeView({ focusId = null }) {
         )}
 
         {selected && (
-          <div className="pointer-events-auto absolute inset-x-4 bottom-4 flex items-center gap-3 rounded-card border border-line bg-card/95 p-3 shadow-pop backdrop-blur">
+          <div
+            data-card
+            onClick={(e) => {
+              if (e.target.closest('button')) return; // CTAs keep their own actions
+              nav(`/p/${selected.id}`);
+            }}
+            className="pointer-events-auto absolute inset-x-4 bottom-4 flex cursor-pointer items-center gap-3 rounded-card border border-line bg-card/95 p-3 shadow-pop backdrop-blur"
+          >
             <Avatar person={selected} size="md" />
             <div className="min-w-0 flex-1">
               <p className="truncate font-display text-[16px] font-medium leading-tight">
@@ -621,15 +678,16 @@ export default function TreeView({ focusId = null }) {
                   <span className="font-body text-[13px] text-ink-soft"> “{selected.nickname}”</span>
                 )}
               </p>
-              <p className="tnum truncate text-[12.5px] text-ink-soft">
-                {[
-                  data.hints?.get(selected.id),
-                  lifeSpan(selected),
-                  selectedRel || (selectedKin && KIN_LABEL[selectedKin]),
-                ]
-                  .filter(Boolean)
-                  .join('  ·  ')}
-              </p>
+              {[data.hints?.get(selected.id), lifeSpan(selected)].some(Boolean) && (
+                <p className="tnum truncate text-[12.5px] text-ink-soft">
+                  {[data.hints?.get(selected.id), lifeSpan(selected)].filter(Boolean).join('  ·  ')}
+                </p>
+              )}
+              {(selectedRel || (selectedKin && KIN_LABEL[selectedKin])) && (
+                <p className="mt-0.5 text-[13px] leading-snug text-ink-soft">
+                  {selectedRel || KIN_LABEL[selectedKin]}
+                </p>
+              )}
             </div>
             {selectedKin === 'extended' ? (
               <button

@@ -80,8 +80,15 @@ people are related, in Tulu and English.
   parent reference, fallback place — on list rows, tree node sublabels,
   pickers, person-page rows), navigation jumps (person page → one-tap home +
   see-on-tree; `#/tree/:id` centres with card open and auto-unfolds the
-  target's capsule). **Remaining for M2.2**: re-skin under Kiran's visual
-  brief.
+  target's capsule). **Tree polish round (11 Jun 2026, Kiran's improvement
+  list)**: capsule tap now also selects + centres the family's anchor
+  (the tap visibly lands); the selection card body is tappable → profile
+  (CTAs keep their actions) and shows the relationship chain fully wrapped
+  on its own line; fold/unfold (pill, card Fold) preserves the current
+  pan/zoom; **heart mark** at every partner-line midpoint (paper-disc halo
+  breaks the line; filled = married/widowed, outline = divorced-dashed;
+  follows accent in tap-to-trace). **Remaining for M2.2**: re-skin under
+  Kiran's visual brief.
 - **M3 — "How are we related"** (English engine shipped 11 Jun 2026): pure-graph
   path engine in `src/lib/relationship.js` — walks a bipartite person↔union graph
   (each step crosses exactly one union; forbidding union revisits canonicalizes
