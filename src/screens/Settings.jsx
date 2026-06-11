@@ -144,6 +144,40 @@ export default function Settings() {
         />
       </Card>
 
+      <Card label="Support">
+        <Row
+          title="Copy diagnostics"
+          caption="Build, device and zoom-state info — paste it when reporting a display bug."
+          onClick={async () => {
+            const diag = {
+              app: 'kutumbakam',
+              version: __APP_VERSION__,
+              build: __BUILD_SHA__,
+              ua: navigator.userAgent,
+              standalone: window.matchMedia('(display-mode: standalone)').matches,
+              devicePixelRatio: window.devicePixelRatio,
+              pageZoom: window.visualViewport
+                ? Math.round(window.visualViewport.scale * 1000) / 1000
+                : null,
+              viewport: {
+                inner: [window.innerWidth, window.innerHeight],
+                visual: window.visualViewport
+                  ? [Math.round(window.visualViewport.width), Math.round(window.visualViewport.height)]
+                  : null,
+              },
+              fonts: document.fonts.status,
+              people: count,
+            };
+            try {
+              await navigator.clipboard.writeText(JSON.stringify(diag, null, 1));
+              toast('Diagnostics copied — paste them to Claude');
+            } catch {
+              toast(JSON.stringify(diag), 'error');
+            }
+          }}
+        />
+      </Card>
+
       <Card label="Danger">
         <Row
           danger

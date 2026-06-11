@@ -150,7 +150,7 @@ export default function AddRelativeSheet({ anchor, family, open, onClose, initia
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search the tree…"
-                className="w-full rounded-[13px] border border-line bg-card px-3.5 py-2.5 text-[15px] placeholder:text-ink-faint focus:border-accent focus:outline-none"
+                className="w-full rounded-[13px] border border-line bg-card px-3.5 py-2.5 text-[16px] placeholder:text-ink-faint focus:border-accent focus:outline-none"
               />
               <div className="max-h-72 overflow-y-auto">
                 {candidates.length === 0 && (

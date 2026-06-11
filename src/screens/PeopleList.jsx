@@ -67,7 +67,7 @@ export default function PeopleList() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Find someone…"
-          className="w-full rounded-full border border-line bg-card px-4 py-2.5 text-[15px] placeholder:text-ink-faint focus:border-accent focus:outline-none"
+          className="w-full rounded-full border border-line bg-card px-4 py-2.5 text-[16px] placeholder:text-ink-faint focus:border-accent focus:outline-none"
         />
       </div>
 

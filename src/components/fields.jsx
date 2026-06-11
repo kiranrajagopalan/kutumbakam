@@ -2,8 +2,10 @@ export function Label({ children }) {
   return <span className="label-caps mb-1.5 block">{children}</span>;
 }
 
+// 16px minimum on every input: iOS Safari auto-zooms the page on focusing
+// anything smaller, and the zoom sticks — breaking layout and SVG text.
 const inputCls =
-  'w-full rounded-[13px] border border-line bg-card px-3.5 py-2.5 text-[15px] placeholder:text-ink-faint focus:border-accent focus:outline-none';
+  'w-full rounded-[13px] border border-line bg-card px-3.5 py-2.5 text-[16px] placeholder:text-ink-faint focus:border-accent focus:outline-none';
 
 export function TextField({ label, value, onChange, placeholder, autoFocus, inputMode, hint }) {
   return (

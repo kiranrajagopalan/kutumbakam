@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- maximum-scale=1: the app provides its own zoom (tree canvas); iOS
+         Safari's input-focus auto-zoom otherwise sticks and breaks layout
+         and SVG text rasterization. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#f7f3ec" />
     <meta name="description" content="Kutumbakam — a private, local-first family tree." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
