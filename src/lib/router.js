@@ -26,6 +26,6 @@ export function useRoute() {
     return parts[2] === 'edit' ? { name: 'edit', id: parts[1] } : { name: 'person', id: parts[1] };
   }
   if (parts[0] === 'settings') return { name: 'settings' };
-  if (parts[0] === 'tree') return { name: 'tree' };
+  if (parts[0] === 'tree') return { name: 'tree', focusId: parts[1] || null };
   return { name: 'home' };
 }

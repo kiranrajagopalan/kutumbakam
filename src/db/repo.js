@@ -3,6 +3,7 @@
 import { db } from './db.js';
 import { compareBirth } from '../lib/format.js';
 import { classifyByKinship } from '../lib/kinship.js';
+import { computeNameHints } from '../lib/disambiguate.js';
 
 const now = () => Date.now();
 const uid = () => crypto.randomUUID();
@@ -58,7 +59,8 @@ export async function listPersons() {
 
 export const getSelf = () => db.persons.filter((p) => p.isSelf).first();
 
-// Full graph snapshot for the tree view, plus kinship classes.
+// Full graph snapshot for the tree view, plus kinship classes and
+// same-name disambiguation hints.
 export async function getTreeData() {
   const [persons, unions, childLinks, self] = await Promise.all([
     db.persons.toArray(),
@@ -67,7 +69,18 @@ export async function getTreeData() {
     getSelf(),
   ]);
   const classes = self ? classifyByKinship({ persons, unions, childLinks }, self.id) : null;
-  return { persons, unions, childLinks, self, classes };
+  const hints = computeNameHints({ persons, unions, childLinks });
+  return { persons, unions, childLinks, self, classes, hints };
+}
+
+// Just the same-name hints (for screens that don't need the whole graph).
+export async function getNameHints() {
+  const [persons, unions, childLinks] = await Promise.all([
+    db.persons.toArray(),
+    db.unions.toArray(),
+    db.childLinks.toArray(),
+  ]);
+  return computeNameHints({ persons, unions, childLinks });
 }
 
 // Everyone, sorted by name, plus each person's kinship class relative to
@@ -81,7 +94,8 @@ export async function getPeopleWithKinship() {
   ]);
   persons.sort((a, b) => a.name.localeCompare(b.name));
   const classes = self ? classifyByKinship({ persons, unions, childLinks }, self.id) : null;
-  return { persons, classes };
+  const hints = computeNameHints({ persons, unions, childLinks });
+  return { persons, classes, hints };
 }
 
 // ---------- unions / links ----------

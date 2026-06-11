@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import Sheet from './Sheet.jsx';
 import QuickPersonForm from './QuickPersonForm.jsx';
 import PersonRow from './PersonRow.jsx';
-import { addRelative, listPersons } from '../db/repo.js';
+import { addRelative, listPersons, getNameHints } from '../db/repo.js';
 import { toast } from '../lib/toast.js';
 
 const ROLES = [
@@ -22,6 +22,7 @@ export default function AddRelativeSheet({ anchor, family, open, onClose, initia
   const [unionId, setUnionId] = useState(null);
   const [q, setQ] = useState('');
   const everyone = useLiveQuery(() => listPersons(), []) || [];
+  const hints = useLiveQuery(() => getNameHints(), []);
 
   useEffect(() => {
     if (open) {
@@ -158,7 +159,7 @@ export default function AddRelativeSheet({ anchor, family, open, onClose, initia
                   </p>
                 )}
                 {candidates.map((p) => (
-                  <PersonRow key={p.id} person={p} onClick={() => submit({ existingId: p.id })} />
+                  <PersonRow key={p.id} person={p} hint={hints?.get(p.id)} onClick={() => submit({ existingId: p.id })} />
                 ))}
               </div>
               <p className="text-center text-[12px] leading-snug text-ink-faint">

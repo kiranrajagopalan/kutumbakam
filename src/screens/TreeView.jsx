@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getTreeData } from '../db/repo.js';
 import { layoutFamilyTree, busPathData, AVATAR_Y, DOT_R } from '../lib/treeData.js';
+import { branchMembers, inLawClusters } from '../lib/kinship.js';
 import { toneFor, initialsOf } from '../lib/avatar.js';
 import { photoUrlFor } from '../lib/photos.js';
 import { lifeSpan } from '../lib/format.js';
@@ -18,13 +19,14 @@ const KIN_LABEL = {
 };
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
-function TreeNode({ n, kin, selected }) {
+function TreeNode({ n, kin, selected, hint }) {
   const p = n.person;
   const tone = toneFor(p.id);
   const url = photoUrlFor(p);
   const dim = kin === 'extended' || kin === 'unconnected';
   const first = p.name.split(/\s+/)[0] || '·';
   const label = first.length > 11 ? `${first.slice(0, 10)}…` : first;
+  const sub = hint || (p.birthYear ? `${p.birthApprox ? 'c. ' : ''}${p.birthYear}` : null);
   return (
     <g
       data-pid={p.id}
@@ -78,17 +80,31 @@ function TreeNode({ n, kin, selected }) {
       >
         {label}
       </text>
-      {p.birthYear && (
+      {sub && (
         <text
           y={AVATAR_Y + AV_R + 32}
           textAnchor="middle"
           fill="var(--color-ink-soft)"
           style={{ font: '400 10.5px var(--font-body)', fontVariantNumeric: 'tabular-nums' }}
         >
-          {p.birthApprox ? 'c. ' : ''}
-          {p.birthYear}
+          {sub}
         </text>
       )}
+    </g>
+  );
+}
+
+// A folded in-law family, rendered where it attaches. Tap to unfold.
+function CapsuleNode({ cap }) {
+  const text = `${cap.label} ▸ ${cap.count}`;
+  const w = text.length * 6.2 + 26;
+  return (
+    <g data-capsule={cap.key} transform={`translate(${cap.x} ${cap.y})`} style={{ cursor: 'pointer' }}>
+      <line x1="0" y1="13" x2="0" y2="27" stroke="var(--color-thread)" strokeWidth="1.5" strokeDasharray="3 3" />
+      <rect x={-w / 2} y={-13} width={w} height={26} rx={13} fill="var(--color-card)" stroke="var(--color-line)" />
+      <text textAnchor="middle" dy="0.34em" fill="var(--color-ink-soft)" style={{ font: '600 11px var(--font-body)' }}>
+        {text}
+      </text>
     </g>
   );
 }
@@ -110,39 +126,47 @@ function Pill({ children, onClick, active, ariaLabel }) {
   );
 }
 
-export default function TreeView() {
+export default function TreeView({ focusId = null }) {
   const data = useLiveQuery(() => getTreeData(), []);
-  const [showExtended, setShowExtended] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
+  const [expandedCaps, setExpandedCaps] = useState(() => new Set());
+  const [branchRootId, setBranchRootId] = useState(null);
   const wrapRef = useRef(null);
   const [view, setView] = useState({ x: 0, y: 0, k: 0.8 });
   const viewRef = useRef(view);
   viewRef.current = view;
+  const expandedRef = useRef(expandedCaps);
+  expandedRef.current = expandedCaps;
   const ptrs = useRef(new Map());
-  const gesture = useRef({ moved: false, lastX: 0, lastY: 0, lastDist: 0, lastMid: null });
+  const gesture = useRef({ moved: false, lastX: 0, lastY: 0, lastDist: 0, lastMid: null, downPid: null, downCap: null });
+  const focusPending = useRef(null);
 
-  const hasExtended = !!data?.classes && data.persons.some((p) => {
-    const c = data.classes.get(p.id);
-    return c === 'extended' || c === 'unconnected';
-  });
+  const clusters = useMemo(() => (data?.classes ? inLawClusters(data, data.classes) : []), [data]);
+
+  // What the layout includes: a branch, or everything minus folded in-law
+  // families (undefined = everyone).
+  const include = useMemo(() => {
+    if (!data) return undefined;
+    if (branchRootId) return branchMembers(data, branchRootId);
+    const hidden = new Set();
+    for (const c of clusters) {
+      if (!expandedCaps.has(c.key)) for (const m of c.members) hidden.add(m);
+    }
+    if (!hidden.size) return undefined;
+    return new Set(data.persons.filter((p) => !hidden.has(p.id)).map((p) => p.id));
+  }, [data, branchRootId, clusters, expandedCaps]);
 
   const layout = useMemo(() => {
     if (!data || !data.persons.length) return null;
-    const rootId = data.self?.id || data.persons[0].id;
-    let include;
-    if (!showExtended && data.classes) {
-      include = new Set(
-        data.persons
-          .filter((p) => ['blood', 'married'].includes(data.classes.get(p.id)))
-          .map((p) => p.id),
-      );
-    }
-    return layoutFamilyTree(data, rootId, { include });
-  }, [data, showExtended]);
+    const rootId = branchRootId || data.self?.id || data.persons[0].id;
+    return layoutFamilyTree(data, rootId, include ? { include } : {});
+  }, [data, include, branchRootId]);
+  const layoutRef = useRef(null);
+  layoutRef.current = layout;
 
   useEffect(() => {
     if (import.meta.env.DEV && layout) {
-      console.debug('[tree] crossings', layout.crossings.length, layout.crossings);
+      console.debug('[tree] crossings', layout.crossings.length);
     }
   }, [layout]);
 
@@ -151,7 +175,6 @@ export default function TreeView() {
     return new Map(layout.busses.map((b) => [b.famId, busPathData(b)]));
   }, [layout]);
 
-  // Tap-to-trace: the selected person's connector constellation.
   const traced = useMemo(() => {
     if (!selectedId || !layout) return null;
     const e = layout.famIndex.get(selectedId);
@@ -159,21 +182,81 @@ export default function TreeView() {
   }, [selectedId, layout]);
   const connOpacity = (famId) => (traced && !traced.has(famId) ? 0.35 : 1);
 
+  // Folded capsules to draw (skipped in branch view — branches exclude
+  // in-law families by definition).
+  const capsules = useMemo(() => {
+    if (!layout || branchRootId) return [];
+    const nodeById = new Map(layout.nodes.map((n) => [n.id, n]));
+    const byId = new Map((data?.persons || []).map((p) => [p.id, p]));
+    return clusters
+      .filter((c) => !expandedCaps.has(c.key))
+      .map((c) => {
+        const anchor = nodeById.get(c.anchorId);
+        const person = byId.get(c.anchorId);
+        if (!anchor || !person) return null;
+        return {
+          key: c.key,
+          x: anchor.cx,
+          y: anchor.y - 26,
+          label: `${person.name.split(/\s+/)[0]}’s family`,
+          count: c.members.size,
+        };
+      })
+      .filter(Boolean);
+  }, [layout, clusters, expandedCaps, branchRootId, data]);
+
   const fitAll = () => {
-    if (!layout || !wrapRef.current) return;
+    if (!layoutRef.current || !wrapRef.current) return;
+    const L = layoutRef.current;
     const { width: cw, height: ch } = wrapRef.current.getBoundingClientRect();
-    const k = clamp(Math.min((cw - 32) / layout.size.width, (ch - 160) / layout.size.height), 0.12, 1.05);
+    const k = clamp(Math.min((cw - 32) / L.size.width, (ch - 160) / L.size.height), 0.12, 1.05);
     setView({
       k,
-      x: (cw - layout.size.width * k) / 2,
-      y: Math.max((ch - layout.size.height * k) / 2, 72),
+      x: (cw - L.size.width * k) / 2,
+      y: Math.max((ch - L.size.height * k) / 2, 72),
     });
   };
 
-  // Initial view: whole tree if it's readable, otherwise centred on you.
+  const centerOn = (id) => {
+    const L = layoutRef.current;
+    const el = wrapRef.current;
+    if (!L || !el) return false;
+    const node = L.nodes.find((n) => n.id === id);
+    if (!node) return false;
+    const { width: cw, height: ch } = el.getBoundingClientRect();
+    const k = 0.9;
+    setView({ k, x: cw / 2 - node.cx * k, y: ch / 2.4 - node.cy * k });
+    setSelectedId(id);
+    focusPending.current = null;
+    return true;
+  };
+
+  // Arriving with a focus target (#/tree/:id): unfold their capsule if
+  // needed, then centre on them with the card open.
+  useEffect(() => {
+    if (!focusId || !data) return;
+    focusPending.current = focusId;
+    const c = clusters.find((cc) => cc.members.has(focusId));
+    if (c && !expandedRef.current.has(c.key)) {
+      setExpandedCaps(new Set([...expandedRef.current, c.key]));
+      return; // the layout change re-triggers centring below
+    }
+    centerOn(focusId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusId, data, clusters]);
+
+  // Initial view: whole tree if readable, else centred on you; branches fit.
   const layoutKey = layout ? `${layout.size.width}x${layout.size.height}` : '';
   useLayoutEffect(() => {
     if (!layout || !wrapRef.current) return;
+    if (focusPending.current) {
+      centerOn(focusPending.current);
+      return;
+    }
+    if (branchRootId) {
+      fitAll();
+      return;
+    }
     const { width: cw, height: ch } = wrapRef.current.getBoundingClientRect();
     const fitK = Math.min((cw - 32) / layout.size.width, (ch - 160) / layout.size.height);
     if (fitK >= 0.45) {
@@ -184,7 +267,7 @@ export default function TreeView() {
       setView({ k, x: cw / 2 - focus.cx * k, y: ch / 2.2 - focus.cy * k });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layoutKey]);
+  }, [layoutKey, branchRootId]);
 
   // Wheel zoom (non-passive so we can preventDefault page scroll).
   useEffect(() => {
@@ -204,10 +287,8 @@ export default function TreeView() {
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
-  // Capture the pointer only once a drag actually starts. Capturing on
-  // touch-down retargets the whole pointer stream to the canvas, which
-  // swallows the click that buttons (pills, info card) and node taps need —
-  // that's exactly the "none of the buttons are clickable" bug.
+  // Capture the pointer only once a drag actually starts — capturing on
+  // touch-down steals the click that buttons and node taps need.
   const capture = (pointerId) => {
     try {
       wrapRef.current.setPointerCapture?.(pointerId);
@@ -224,9 +305,8 @@ export default function TreeView() {
       g.moved = false;
       g.lastX = e.clientX;
       g.lastY = e.clientY;
-      // remember what the finger landed on — pointer capture during a later
-      // drag retargets events, so the up handler can't trust e.target
       g.downPid = e.target.closest?.('[data-pid]')?.getAttribute('data-pid') || null;
+      g.downCap = e.target.closest?.('[data-capsule]')?.getAttribute('data-capsule') || null;
     } else if (ptrs.current.size === 2) {
       for (const id of ptrs.current.keys()) capture(id);
       const [a, b] = [...ptrs.current.values()];
@@ -245,7 +325,7 @@ export default function TreeView() {
       const dy = e.clientY - g.lastY;
       if (!g.moved && Math.abs(dx) + Math.abs(dy) > 3) {
         g.moved = true;
-        capture(e.pointerId); // drag confirmed — now own the pointer
+        capture(e.pointerId);
       }
       g.lastX = e.clientX;
       g.lastY = e.clientY;
@@ -276,15 +356,32 @@ export default function TreeView() {
       g.lastY = p.y;
     }
     if (ptrs.current.size === 0 && !g.moved) {
-      // use the target recorded at touch-down (capture-proof)
-      setSelectedId(g.downPid && g.downPid !== selectedId ? g.downPid : null);
+      if (g.downCap) {
+        setExpandedCaps(new Set([...expandedRef.current, g.downCap]));
+      } else {
+        setSelectedId(g.downPid && g.downPid !== selectedId ? g.downPid : null);
+      }
     }
-    if (ptrs.current.size === 0) g.downPid = null;
+    if (ptrs.current.size === 0) {
+      g.downPid = null;
+      g.downCap = null;
+    }
   };
 
   if (!data) return null;
   const selected = selectedId ? data.persons.find((p) => p.id === selectedId) : null;
   const selectedKin = selected && data.classes ? data.classes.get(selected.id) : null;
+  const branchPerson = branchRootId ? data.persons.find((p) => p.id === branchRootId) : null;
+  const foldedCount = clusters.filter((c) => !expandedCaps.has(c.key)).length;
+
+  const foldFamilyOf = (personId) => {
+    const c = clusters.find((cc) => cc.members.has(personId));
+    if (!c) return;
+    const next = new Set(expandedRef.current);
+    next.delete(c.key);
+    setExpandedCaps(next);
+    setSelectedId(null);
+  };
 
   return (
     <div
@@ -407,7 +504,11 @@ export default function TreeView() {
                 n={n}
                 kin={data.classes?.get(n.id)}
                 selected={n.id === selectedId}
+                hint={data.hints?.get(n.id)}
               />
+            ))}
+            {capsules.map((cap) => (
+              <CapsuleNode key={cap.key} cap={cap} />
             ))}
           </g>
         </svg>
@@ -421,9 +522,17 @@ export default function TreeView() {
           </Pill>
         </div>
         <div className="absolute right-4 top-4 flex flex-col items-end gap-2">
-          {hasExtended && (
-            <Pill active={showExtended} onClick={() => setShowExtended(!showExtended)}>
-              Extended {showExtended ? 'shown' : 'hidden'}
+          {!branchRootId && clusters.length > 0 && (
+            <Pill
+              active={foldedCount === 0}
+              onClick={() =>
+                foldedCount > 0
+                  ? setExpandedCaps(new Set(clusters.map((c) => c.key)))
+                  : setExpandedCaps(new Set())
+              }
+              ariaLabel="Fold or unfold all in-law families"
+            >
+              {foldedCount > 0 ? `In-laws · ${foldedCount} folded` : 'In-laws shown'}
             </Pill>
           )}
           <Pill onClick={fitAll} ariaLabel="Fit whole tree">
@@ -431,6 +540,14 @@ export default function TreeView() {
             Fit
           </Pill>
         </div>
+
+        {branchPerson && (
+          <div className="absolute left-1/2 top-16 -translate-x-1/2">
+            <Pill active onClick={() => setBranchRootId(null)} ariaLabel="Exit branch view">
+              Branch of {branchPerson.name.split(/\s+/)[0]} ✕
+            </Pill>
+          </div>
+        )}
 
         {layout?.unplaced.length > 0 && (
           <p className="absolute bottom-4 left-4 rounded-full bg-card/80 px-3 py-1.5 text-[11.5px] text-ink-faint backdrop-blur">
@@ -449,11 +566,33 @@ export default function TreeView() {
                 )}
               </p>
               <p className="tnum truncate text-[12.5px] text-ink-soft">
-                {[lifeSpan(selected), selectedKin && KIN_LABEL[selectedKin]]
+                {[data.hints?.get(selected.id), lifeSpan(selected), selectedKin && KIN_LABEL[selectedKin]]
                   .filter(Boolean)
                   .join('  ·  ')}
               </p>
             </div>
+            {selectedKin === 'extended' ? (
+              <button
+                type="button"
+                onClick={() => foldFamilyOf(selected.id)}
+                className="rounded-full border border-line bg-card px-3.5 py-2 text-[13.5px] font-semibold text-ink-soft"
+              >
+                Fold
+              </button>
+            ) : (
+              !branchRootId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBranchRootId(selected.id);
+                    setSelectedId(null);
+                  }}
+                  className="rounded-full border border-line bg-card px-3.5 py-2 text-[13.5px] font-semibold text-ink-soft"
+                >
+                  Branch
+                </button>
+              )
+            )}
             <button
               type="button"
               onClick={() => nav(`/p/${selected.id}`)}

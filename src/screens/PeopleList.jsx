@@ -87,7 +87,7 @@ export default function PeopleList() {
           </p>
           <div className="flex flex-col gap-0.5">
             {g.people.map((p) => (
-              <PersonRow key={p.id} person={p} onClick={() => nav(`/p/${p.id}`)} />
+              <PersonRow key={p.id} person={p} hint={data?.hints?.get(p.id)} onClick={() => nav(`/p/${p.id}`)} />
             ))}
           </div>
         </div>

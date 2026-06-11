@@ -57,3 +57,102 @@ export function classifyByKinship({ persons, unions, childLinks }, selfId) {
   }
   return result;
 }
+
+// Builds an undirected neighbour function over the graph (parents, children,
+// spouses, siblings-via-union) — shared by the helpers below.
+function neighbourFn({ persons, unions, childLinks }) {
+  const unionById = new Map(unions.map((u) => [u.id, u]));
+  const parentUnionsOf = new Map();
+  const childrenOfUnion = new Map();
+  for (const l of childLinks) {
+    parentUnionsOf.set(l.childId, [...(parentUnionsOf.get(l.childId) || []), l.unionId]);
+    childrenOfUnion.set(l.unionId, [...(childrenOfUnion.get(l.unionId) || []), l.childId]);
+  }
+  const unionsOf = new Map();
+  for (const u of unions) {
+    for (const pid of u.partnerIds) unionsOf.set(pid, [...(unionsOf.get(pid) || []), u]);
+  }
+  return {
+    neighbours: (pid) => [
+      ...(parentUnionsOf.get(pid) || []).flatMap((uid) => unionById.get(uid)?.partnerIds || []),
+      ...(unionsOf.get(pid) || []).flatMap((u) => [
+        ...u.partnerIds.filter((x) => x !== pid),
+        ...(childrenOfUnion.get(u.id) || []),
+      ]),
+      ...(parentUnionsOf.get(pid) || []).flatMap((uid) =>
+        (childrenOfUnion.get(uid) || []).filter((x) => x !== pid),
+      ),
+    ],
+    unionsOf,
+    childrenOfUnion,
+  };
+}
+
+// The "branch" of a person: themselves, all their descendants, and everyone
+// married to any of them.
+export function branchMembers(graph, rootId) {
+  const { unionsOf, childrenOfUnion } = neighbourFn(graph);
+  const set = new Set([rootId]);
+  let frontier = [rootId];
+  while (frontier.length) {
+    const next = [];
+    for (const id of frontier) {
+      for (const u of unionsOf.get(id) || []) {
+        for (const kid of childrenOfUnion.get(u.id) || []) {
+          if (!set.has(kid)) {
+            set.add(kid);
+            next.push(kid);
+          }
+        }
+      }
+    }
+    frontier = next;
+  }
+  for (const id of [...set]) {
+    for (const u of unionsOf.get(id) || []) for (const pid of u.partnerIds) set.add(pid);
+  }
+  return set;
+}
+
+// Groups extended-class people into in-law family clusters, each anchored to
+// the married-in person they attach through ("Anupam's family"). The tree
+// renders collapsed clusters as capsules.
+export function inLawClusters(graph, classes) {
+  if (!classes) return [];
+  const { neighbours } = neighbourFn(graph);
+  const extended = new Set(
+    graph.persons.filter((p) => classes.get(p.id) === 'extended').map((p) => p.id),
+  );
+  const seen = new Set();
+  const byAnchor = new Map();
+  for (const start of extended) {
+    if (seen.has(start)) continue;
+    const members = new Set([start]);
+    const anchors = new Set();
+    seen.add(start);
+    let queue = [start];
+    while (queue.length) {
+      const cur = queue.pop();
+      for (const nb of neighbours(cur)) {
+        if (extended.has(nb)) {
+          if (!seen.has(nb)) {
+            seen.add(nb);
+            members.add(nb);
+            queue.push(nb);
+          }
+        } else if (classes.get(nb) === 'married') {
+          anchors.add(nb);
+        }
+      }
+    }
+    const anchorId = [...anchors][0] || start;
+    if (!byAnchor.has(anchorId)) byAnchor.set(anchorId, new Set());
+    const merged = byAnchor.get(anchorId);
+    for (const m of members) merged.add(m);
+  }
+  return [...byAnchor].map(([anchorId, members]) => ({
+    key: `cap-${anchorId}`,
+    anchorId,
+    members,
+  }));
+}

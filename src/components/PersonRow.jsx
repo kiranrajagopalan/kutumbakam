@@ -2,10 +2,11 @@ import Avatar from './Avatar.jsx';
 import { lifeSpan } from '../lib/format.js';
 
 // One person, one row. `chip` is a tiny status tag ("adopted", "half", …),
-// `meta` is appended to the secondary line ("m. 1982").
-export default function PersonRow({ person, chip, meta, onClick, trailing }) {
+// `meta` is appended to the secondary line ("m. 1982"), `hint` is the
+// same-name disambiguator ("s/o Achutha") and leads the line when present.
+export default function PersonRow({ person, chip, meta, hint, onClick, trailing }) {
   const chips = [chip, person.isSelf && 'You'].filter(Boolean);
-  const sub = [person.nickname && `“${person.nickname}”`, lifeSpan(person), meta]
+  const sub = [hint, person.nickname && `“${person.nickname}”`, lifeSpan(person), meta]
     .filter(Boolean)
     .join('  ·  ');
   return (

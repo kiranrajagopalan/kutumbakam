@@ -4,8 +4,8 @@ import Avatar from '../components/Avatar.jsx';
 import PersonRow from '../components/PersonRow.jsx';
 import AddRelativeSheet from '../components/AddRelativeSheet.jsx';
 import UnionSheet from '../components/UnionSheet.jsx';
-import { ChevronLeft, Pencil, Plus, Lock } from '../components/icons.jsx';
-import { getPerson, getImmediateFamily } from '../db/repo.js';
+import { ChevronLeft, Pencil, Plus, Lock, TreeGlyph, ListGlyph } from '../components/icons.jsx';
+import { getPerson, getImmediateFamily, getNameHints } from '../db/repo.js';
 import { lifeSpan, ageOf, yearLabel } from '../lib/format.js';
 import { nav, back } from '../lib/router.js';
 
@@ -40,8 +40,10 @@ const relationChip = (relation) =>
 export default function PersonDetail({ id }) {
   const person = useLiveQuery(() => getPerson(id), [id]);
   const family = useLiveQuery(() => getImmediateFamily(id), [id]);
+  const hints = useLiveQuery(() => getNameHints(), []);
   const [sheet, setSheet] = useState({ open: false, role: null });
   const [unionEdit, setUnionEdit] = useState(null);
+  const hintOf = (p) => hints?.get(p.id);
 
   if (!person || !family) {
     return person === null ? (
@@ -80,14 +82,32 @@ export default function PersonDetail({ id }) {
         >
           <ChevronLeft />
         </button>
-        <button
-          type="button"
-          onClick={() => nav(`/p/${id}/edit`)}
-          className="flex items-center gap-1.5 rounded-full border border-line bg-card px-3.5 py-2 text-[13.5px] font-semibold text-ink-soft transition-colors hover:border-accent"
-        >
-          <Pencil className="size-4" />
-          Edit
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label="See on the tree"
+            onClick={() => nav(`/tree/${id}`)}
+            className="flex size-10 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-accent-soft/40"
+          >
+            <TreeGlyph />
+          </button>
+          <button
+            type="button"
+            aria-label="All people"
+            onClick={() => nav('/')}
+            className="flex size-10 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-accent-soft/40"
+          >
+            <ListGlyph />
+          </button>
+          <button
+            type="button"
+            onClick={() => nav(`/p/${id}/edit`)}
+            className="ml-1 flex items-center gap-1.5 rounded-full border border-line bg-card px-3.5 py-2 text-[13.5px] font-semibold text-ink-soft transition-colors hover:border-accent"
+          >
+            <Pencil className="size-4" />
+            Edit
+          </button>
+        </div>
       </div>
 
       <header className="mt-3 flex items-start gap-4 px-1">
@@ -124,7 +144,7 @@ export default function PersonDetail({ id }) {
         }
       >
         {family.parents.map(({ person: p, relation }) => (
-          <PersonRow key={p.id} person={p} chip={relationChip(relation)} onClick={() => nav(`/p/${p.id}`)} />
+          <PersonRow key={p.id} person={p} chip={relationChip(relation)} hint={hintOf(p)} onClick={() => nav(`/p/${p.id}`)} />
         ))}
         {family.parents.length === 0 && (
           <div className="flex">
@@ -145,6 +165,7 @@ export default function PersonDetail({ id }) {
             key={p.id}
             person={p}
             chip={relationChip(relation) || (kind === 'half' ? 'half' : null)}
+            hint={hintOf(p)}
             onClick={() => nav(`/p/${p.id}`)}
           />
         ))}
@@ -169,6 +190,7 @@ export default function PersonDetail({ id }) {
                     person={u.partner}
                     chip={u.union.status && u.union.status !== 'married' ? u.union.status : null}
                     meta={unionMeta(u)}
+                    hint={hintOf(u.partner)}
                     onClick={() => nav(`/p/${u.partner.id}`)}
                   />
                 </div>
@@ -189,7 +211,7 @@ export default function PersonDetail({ id }) {
             {u.children.length > 0 && (
               <div className="ml-5 border-l-2 border-line pl-2">
                 {u.children.map(({ person: c, relation }) => (
-                  <PersonRow key={c.id} person={c} chip={relationChip(relation)} onClick={() => nav(`/p/${c.id}`)} />
+                  <PersonRow key={c.id} person={c} chip={relationChip(relation)} hint={hintOf(c)} onClick={() => nav(`/p/${c.id}`)} />
                 ))}
               </div>
             )}

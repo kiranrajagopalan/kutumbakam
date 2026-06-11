@@ -82,7 +82,7 @@ export default function App() {
   else if (route.name === 'person') screen = <PersonDetail id={route.id} key={route.id} />;
   else if (route.name === 'edit') screen = <PersonForm id={route.id} key={route.id} />;
   else if (route.name === 'settings') screen = <Settings />;
-  else if (route.name === 'tree') screen = <TreeView />;
+  else if (route.name === 'tree') screen = <TreeView focusId={route.focusId} />;
   else screen = <PeopleList />;
 
   return (
