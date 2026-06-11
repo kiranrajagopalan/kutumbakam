@@ -25,7 +25,12 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const PAPER = '#f7f3ec';
 const INK = '#221d18';
 const INK_SOFT = '#6f6457';
-const DIM = 0.62; // blend toward paper for extended/unconnected (≈ old 38% opacity)
+// De-emphasis must stay LEGIBLE: the avatar fades hard, but text only
+// softens — equal fading made dim names vanish on phones ("empty circle"
+// bug). Initials sit on an already-faded circle, so they fade least.
+const DIM_AVATAR = 0.62;
+const DIM_INITIALS = 0.35;
+const DIM_TEXT = 0.38;
 
 function TreeNode({ n, kin, selected, hint }) {
   const p = n.person;
@@ -33,9 +38,10 @@ function TreeNode({ n, kin, selected, hint }) {
   const url = photoUrlFor(p);
   const dim = kin === 'extended' || kin === 'unconnected';
   // Dim and deceased both fade the avatar — compose the two into one solid blend.
-  let t = dim ? DIM : 0;
+  let t = dim ? DIM_AVATAR : 0;
   if (!p.isAlive) t = 1 - (1 - t) * 0.8;
-  const tText = dim ? DIM : 0;
+  const tInitials = dim ? DIM_INITIALS : 0;
+  const tText = dim ? DIM_TEXT : 0;
   const first = p.name.split(/\s+/)[0] || '·';
   const label = first.length > 11 ? `${first.slice(0, 10)}…` : first;
   const sub = hint || (p.birthYear ? `${p.birthApprox ? 'c. ' : ''}${p.birthYear}` : null);
@@ -74,7 +80,7 @@ function TreeNode({ n, kin, selected, hint }) {
             y={AVATAR_Y}
             dy="0.36em"
             textAnchor="middle"
-            fill={mixHex(tone.fg, PAPER, t)}
+            fill={mixHex(tone.fg, PAPER, Math.max(tInitials, !p.isAlive ? 0.2 : 0))}
             style={{ font: '600 15px var(--font-display)' }}
           >
             {initialsOf(p.name)}
