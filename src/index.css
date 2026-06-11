@@ -3,9 +3,9 @@
 @import '@fontsource-variable/albert-sans';
 
 /*
- * Interim design tokens — deliberately restrained "paper & ink" system.
- * The final art direction will be briefed by Kiran; everything visual hangs
- * off these tokens so a re-skin is a token swap, not a rewrite.
+ * "Paper & ink" design tokens — ratified as the visual direction (Jun 2026).
+ * Canonical system (tokens, style guide, adoption rules): ../../paper-ink/.
+ * Everything visual hangs off these tokens, so re-tuning stays a token swap.
  */
 @theme {
   --font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;

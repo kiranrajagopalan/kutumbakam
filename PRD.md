@@ -95,8 +95,10 @@ people are related, in Tulu and English.
   on its own line; fold/unfold (pill, card Fold) preserves the current
   pan/zoom; **heart mark** at every partner-line midpoint (paper-disc halo
   breaks the line; filled = married/widowed, outline = divorced-dashed;
-  follows accent in tap-to-trace). **Remaining for M2.2**: re-skin under
-  Kiran's visual brief.
+  follows accent in tap-to-trace). **M2.2 closed (12 Jun 2026)**: Kiran ratified
+  the paper &amp; ink direction as final, and the system was extracted into a
+  reusable package at `../paper-ink/` (tokens.css + styleguide.html + README
+  with the non-token laws). Future visual changes go through those tokens.
 - **M3 — "How are we related"** (English engine shipped 11 Jun 2026): pure-graph
   path engine in `src/lib/relationship.js` — walks a bipartite person↔union graph
   (each step crosses exactly one union; forbidding union revisits canonicalizes

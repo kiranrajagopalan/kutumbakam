@@ -10,9 +10,12 @@ decisions, data model and milestones.
 - **Sensitive field class**: `phone`, `privateNotes`. Never include them in any share,
   publish, or sync surface; only the full backup export carries them. Preserve this in
   every new feature.
-- **Design tokens live in `src/index.css` `@theme`** — interim "paper & ink" system.
-  Kiran (designer) will brief the final art direction; don't art-direct beyond the
-  token system without him. No new fonts/colors outside tokens.
+- **Design tokens live in `src/index.css` `@theme`** — the "paper & ink" system,
+  **ratified by Kiran as the visual direction (12 Jun 2026)**. The canonical,
+  reusable system (tokens + visual style guide + adoption rules) lives at
+  `../paper-ink/` — keep the two token sets in sync. No new fonts/colors/sizes
+  outside tokens; known token debt (hardcoded #fff8f3, #d9b6ae, 13px/22px radii)
+  is listed in `../paper-ink/README.md` — adopt the named tokens at next touch.
 - **Kinship correctness data matters**: `birthOrder`, union order, `relation` on
   childLinks, gender — the future "how are we related" engine (English + Tulu) depends
   on them. Don't drop these fields in forms or migrations.
