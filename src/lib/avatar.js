@@ -19,6 +19,16 @@ export function toneFor(id) {
   return TONES[h % TONES.length];
 }
 
+// Blend two hex colors. Used by the tree to render "dimmed" nodes as solid
+// pre-blended colors instead of opacity — translucent fills let connector
+// lines show through the avatar circle.
+export function mixHex(a, b, t) {
+  if (t <= 0) return a;
+  const pa = a.match(/\w\w/g).map((x) => parseInt(x, 16));
+  const pb = b.match(/\w\w/g).map((x) => parseInt(x, 16));
+  return `#${pa.map((v, i) => Math.round(v + (pb[i] - v) * t).toString(16).padStart(2, '0')).join('')}`;
+}
+
 export function initialsOf(name) {
   const words = (name || '').trim().split(/\s+/).filter(Boolean);
   if (!words.length) return '·';

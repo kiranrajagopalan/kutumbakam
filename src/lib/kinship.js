@@ -29,6 +29,21 @@ export function classifyByKinship({ persons, unions, childLinks }, selfId) {
     (unionsOf.get(pid) || []).flatMap((u) => childrenOfUnion.get(u.id) || []);
   const spousesOf = (pid) =>
     (unionsOf.get(pid) || []).flatMap((u) => u.partnerIds.filter((x) => x !== pid));
+  // Co-children of a shared union — the sibling edge. Needed explicitly for
+  // connectivity, because siblings recorded before any parent share an
+  // empty "unknown parents" union that the parent/child walks can't cross.
+  const siblingsOf = (pid) =>
+    (parentUnionsOf.get(pid) || []).flatMap((uid) =>
+      (childrenOfUnion.get(uid) || []).filter((x) => x !== pid),
+    );
+  // Siblings through a PARTNERLESS union specifically: the empty union
+  // stands in for the same unknown parents, so blood passes through it
+  // (your grandmother's sister is blood even when their parents were never
+  // recorded).
+  const orphanSiblingsOf = (pid) =>
+    (parentUnionsOf.get(pid) || [])
+      .filter((uid) => (unionById.get(uid)?.partnerIds.length || 0) === 0)
+      .flatMap((uid) => (childrenOfUnion.get(uid) || []).filter((x) => x !== pid));
 
   const grow = (seed, expand) => {
     const seen = new Set(seed);
@@ -41,12 +56,17 @@ export function classifyByKinship({ persons, unions, childLinks }, selfId) {
   };
 
   const ancestors = grow([selfId], parentsOf);
-  const blood = grow([...ancestors], childrenOf);
+  const blood = grow([...ancestors], (pid) => [...childrenOf(pid), ...orphanSiblingsOf(pid)]);
   const married = new Set();
   for (const pid of blood) {
     for (const s of spousesOf(pid)) if (!blood.has(s)) married.add(s);
   }
-  const connected = grow([selfId], (pid) => [...parentsOf(pid), ...childrenOf(pid), ...spousesOf(pid)]);
+  const connected = grow([selfId], (pid) => [
+    ...parentsOf(pid),
+    ...childrenOf(pid),
+    ...spousesOf(pid),
+    ...siblingsOf(pid),
+  ]);
 
   const result = new Map();
   for (const p of persons) {

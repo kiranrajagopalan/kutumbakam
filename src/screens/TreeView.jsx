@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { getTreeData } from '../db/repo.js';
 import { layoutFamilyTree, busPathData, AVATAR_Y, DOT_R } from '../lib/treeData.js';
 import { branchMembers, inLawClusters } from '../lib/kinship.js';
-import { toneFor, initialsOf } from '../lib/avatar.js';
+import { toneFor, initialsOf, mixHex } from '../lib/avatar.js';
 import { photoUrlFor } from '../lib/photos.js';
 import { lifeSpan } from '../lib/format.js';
 import { ListGlyph, FitGlyph } from '../components/icons.jsx';
@@ -19,21 +19,28 @@ const KIN_LABEL = {
 };
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
+// Literal copies of the paper/ink tokens: SVG fills are pre-blended to solid
+// colors here (opacity-dimmed fills are translucent, which lets connector
+// lines show through the avatar circle). Keep in sync with index.css @theme.
+const PAPER = '#f7f3ec';
+const INK = '#221d18';
+const INK_SOFT = '#6f6457';
+const DIM = 0.62; // blend toward paper for extended/unconnected (≈ old 38% opacity)
+
 function TreeNode({ n, kin, selected, hint }) {
   const p = n.person;
   const tone = toneFor(p.id);
   const url = photoUrlFor(p);
   const dim = kin === 'extended' || kin === 'unconnected';
+  // Dim and deceased both fade the avatar — compose the two into one solid blend.
+  let t = dim ? DIM : 0;
+  if (!p.isAlive) t = 1 - (1 - t) * 0.8;
+  const tText = dim ? DIM : 0;
   const first = p.name.split(/\s+/)[0] || '·';
   const label = first.length > 11 ? `${first.slice(0, 10)}…` : first;
   const sub = hint || (p.birthYear ? `${p.birthApprox ? 'c. ' : ''}${p.birthYear}` : null);
   return (
-    <g
-      data-pid={p.id}
-      transform={`translate(${n.cx} ${n.y})`}
-      opacity={dim ? 0.38 : 1}
-      style={{ cursor: 'pointer' }}
-    >
+    <g data-pid={p.id} transform={`translate(${n.cx} ${n.y})`} style={{ cursor: 'pointer' }}>
       {selected && (
         <circle cy={AVATAR_Y} r={AV_R + 5} fill="none" stroke="var(--color-accent)" strokeWidth="2.5" />
       )}
@@ -48,24 +55,26 @@ function TreeNode({ n, kin, selected, hint }) {
         />
       )}
       {url ? (
-        <image
-          href={url}
-          x={-AV_R}
-          y={AVATAR_Y - AV_R}
-          width={AV_R * 2}
-          height={AV_R * 2}
-          clipPath="url(#kutumbakam-av)"
-          preserveAspectRatio="xMidYMid slice"
-          opacity={p.isAlive ? 1 : 0.82}
-        />
+        <>
+          <image
+            href={url}
+            x={-AV_R}
+            y={AVATAR_Y - AV_R}
+            width={AV_R * 2}
+            height={AV_R * 2}
+            clipPath="url(#kutumbakam-av)"
+            preserveAspectRatio="xMidYMid slice"
+          />
+          {t > 0 && <circle cy={AVATAR_Y} r={AV_R} fill={PAPER} fillOpacity={t} />}
+        </>
       ) : (
         <>
-          <circle cy={AVATAR_Y} r={AV_R} fill={tone.bg} opacity={p.isAlive ? 1 : 0.8} />
+          <circle cy={AVATAR_Y} r={AV_R} fill={mixHex(tone.bg, PAPER, t)} />
           <text
             y={AVATAR_Y}
             dy="0.36em"
             textAnchor="middle"
-            fill={tone.fg}
+            fill={mixHex(tone.fg, PAPER, t)}
             style={{ font: '600 15px var(--font-display)' }}
           >
             {initialsOf(p.name)}
@@ -75,7 +84,7 @@ function TreeNode({ n, kin, selected, hint }) {
       <text
         y={AVATAR_Y + AV_R + 17}
         textAnchor="middle"
-        fill="var(--color-ink)"
+        fill={mixHex(INK, PAPER, tText)}
         style={{ font: '500 12.5px var(--font-body)' }}
       >
         {label}
@@ -84,7 +93,7 @@ function TreeNode({ n, kin, selected, hint }) {
         <text
           y={AVATAR_Y + AV_R + 32}
           textAnchor="middle"
-          fill="var(--color-ink-soft)"
+          fill={mixHex(INK_SOFT, PAPER, tText)}
           style={{ font: '400 10.5px var(--font-body)', fontVariantNumeric: 'tabular-nums' }}
         >
           {sub}
@@ -246,13 +255,21 @@ export default function TreeView({ focusId = null }) {
   }, [focusId, data, clusters]);
 
   // Initial view: whole tree if readable, else centred on you; branches fit.
-  const layoutKey = layout ? `${layout.size.width}x${layout.size.height}` : '';
+  // Runs on every layout identity (data edits can change the layout without
+  // changing its SIZE, so a size-string key would miss them — that was the
+  // "new person invisible until I left and came back" bug). A shape key
+  // guards against resetting the user's pan/zoom on irrelevant ticks, while
+  // a pending focus target retries until its node exists.
+  const lastViewKey = useRef('');
   useLayoutEffect(() => {
     if (!layout || !wrapRef.current) return;
     if (focusPending.current) {
       centerOn(focusPending.current);
       return;
     }
+    const key = `${layout.size.width}x${layout.size.height}|${branchRootId || ''}`;
+    if (key === lastViewKey.current) return;
+    lastViewKey.current = key;
     if (branchRootId) {
       fitAll();
       return;
@@ -267,7 +284,7 @@ export default function TreeView({ focusId = null }) {
       setView({ k, x: cw / 2 - focus.cx * k, y: ch / 2.2 - focus.cy * k });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layoutKey, branchRootId]);
+  }, [layout, branchRootId]);
 
   // Wheel zoom (non-passive so we can preventDefault page scroll).
   useEffect(() => {
