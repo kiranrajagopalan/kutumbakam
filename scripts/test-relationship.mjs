@@ -66,9 +66,23 @@ const flipped = rel('p-sharada', 'p-nithya');
 check('Sharada → Nithya', flipped.primary.body, 'husband’s elder sister’s daughter-in-law');
 check('non-self head uses the name', flipped.head, 'Sharada’s');
 
+// --- in-law families (extended lens) ---
+check('Janardhana = father-in-law', primary(ME, 'p-janardhana'), 'father-in-law');
+check('Sarojini = mother-in-law', primary(ME, 'p-sarojini'), 'mother-in-law');
+check('Kishore', primary(ME, 'p-kishore'), 'wife’s younger brother');
+check('Megha', primary(ME, 'p-megha'), 'wife’s younger brother’s wife');
+check('Lalitha (partnerless sibling container)', primary(ME, 'p-lalitha'), 'father’s younger sister’s husband’s elder sister');
+
+// --- divorce + single parent ---
+check('Rukmini = former wife of half-uncle', primary(ME, 'p-rukmini'), 'father’s elder half-brother’s former wife');
+check('Dinesha = half-uncle’s son', primary(ME, 'p-dinesha'), 'father’s elder half-brother’s son');
+check('Santosha (single recorded parent)', primary(ME, 'p-santosha'), 'mother’s younger sister’s son');
+
 // --- edges ---
 check('self', rel(ME, ME).kind, 'self');
 check('unknown person', rel(ME, 'p-nobody').kind, 'none');
+check('Raghava is unconnected', rel(ME, 'p-raghava').kind, 'none');
+check('Bhavani is unconnected', rel(ME, 'p-bhavani').kind, 'none');
 
 console.log(failures ? `\n${failures} failing` : '\nall green');
 process.exit(failures ? 1 : 0);

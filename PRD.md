@@ -129,6 +129,8 @@ notes are a separate class from shared facts; deceased ≠ living in future visi
 
 ## Verify
 `npm run dev` (port 5180, registered in repo `.claude/launch.json` as `kutumbakam`) →
-onboarding → "Explore a demo family" → 22 fictional people covering remarriage,
-half-siblings, adoption, and an in-family second marriage bridge. `npm run build` must
-stay clean.
+onboarding → "Explore a demo family" → 32 fictional people covering remarriage,
+half-siblings, adoption, divorce (dashed line + outline heart), two in-law
+families (capsules), a single recorded parent ("+ Add partner" rehearsal), an
+in-family second-marriage bridge, and two not-yet-connected people.
+`node scripts/test-relationship.mjs` and `npm run build` must stay clean.

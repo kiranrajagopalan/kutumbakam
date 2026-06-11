@@ -1,8 +1,9 @@
 // A fictional demo family (no real people). Deliberately exercises the hard
-// cases: remarriage after widowhood, a half-sibling, an adopted child, and
-// TWO marriages bridging the same two families — which makes some relatives
-// related in more than one way (the multi-path case the future "how are we
-// related" engine must handle).
+// cases: remarriage after widowhood, a half-sibling, an adopted child, a
+// divorce, TWO marriages bridging the same two families (relatives related in
+// more than one way), two in-law families (the extended lens + capsules), a
+// single recorded parent ("Partner not recorded" → the + Add partner repair),
+// and two people not yet connected to anyone.
 import { db } from './db.js';
 import { blankPerson } from './repo.js';
 
@@ -46,6 +47,25 @@ export function demoGraph() {
     // Children's generation
     P('p-ira', { name: 'Ira', gender: 'female', birthYear: 2018 }),
     P('p-tanvi', { name: 'Tanvi', gender: 'female', birthYear: 2012 }),
+
+    // Nithya's side — an in-law family (extended lens, folds into a capsule)
+    P('p-janardhana', { name: 'Janardhana', gender: 'male', birthYear: 1958, nativePlace: 'Moodabidri', occupation: 'Rice miller' }),
+    P('p-sarojini', { name: 'Sarojini', gender: 'female', birthYear: 1963 }),
+    P('p-kishore', { name: 'Kishore', gender: 'male', birthYear: 1991, currentCity: 'Hyderabad' }),
+    P('p-megha', { name: 'Megha', gender: 'female', birthYear: 1993 }),
+    // Gopala's side — a one-person in-law family via a partnerless sibling
+    // container (parents never recorded)
+    P('p-lalitha', { name: 'Lalitha', gender: 'female', birthYear: 1947 }),
+    // Krishna's divorce — dashed spouse line, outline heart, "former wife"
+    P('p-rukmini', { name: 'Rukmini', gender: 'female', birthYear: 1950, nativePlace: 'Karkala' }),
+    P('p-dinesha', { name: 'Dinesha', gender: 'male', birthYear: 1975, currentCity: 'Mumbai' }),
+    // Leela's son — father deliberately not recorded ("Partner not recorded"
+    // → try the + Add partner repair here)
+    P('p-santosha', { name: 'Santosha', gender: 'male', birthYear: 1990 }),
+    // Not yet connected to anyone — show up in the list's last group and the
+    // tree's "not yet placed" note
+    P('p-raghava', { name: 'Raghava', gender: 'male', birthYear: 1968, notes: 'Met at a temple function in Udupi — how he is related is still unknown.' }),
+    P('p-bhavani', { name: 'Bhavani', gender: 'female', birthYear: 1990 }),
   ];
 
   const unions = [
@@ -59,6 +79,14 @@ export function demoGraph() {
     // in more than one way.
     U('u-prakash-asha', ['p-prakash', 'p-asha'], { marriageYear: 2008 }),
     U('u-deepak-nithya', ['p-deepak', 'p-nithya'], { marriageYear: 2014 }),
+    // In-law families
+    U('u-janardhana-sarojini', ['p-janardhana', 'p-sarojini'], { marriageYear: 1986 }),
+    U('u-kishore-megha', ['p-kishore', 'p-megha'], { marriageYear: 2019 }),
+    U('u-gopala-sibs', [], { status: '' }), // Gopala & Lalitha's unrecorded parents
+    // Divorce
+    U('u-krishna-rukmini', ['p-krishna', 'p-rukmini'], { status: 'divorced', marriageYear: 1972 }),
+    // Single recorded parent
+    U('u-leela-solo', ['p-leela'], { status: '' }),
   ];
 
   const childLinks = [
@@ -76,6 +104,12 @@ export function demoGraph() {
     L('l-asha', 'p-asha', 'u-mohana-sharada'),
     L('l-ira', 'p-ira', 'u-deepak-nithya'),
     L('l-tanvi', 'p-tanvi', 'u-prakash-asha'),
+    L('l-nithya', 'p-nithya', 'u-janardhana-sarojini'),
+    L('l-kishore', 'p-kishore', 'u-janardhana-sarojini'),
+    L('l-gopala-sib', 'p-gopala', 'u-gopala-sibs'),
+    L('l-lalitha', 'p-lalitha', 'u-gopala-sibs'),
+    L('l-dinesha', 'p-dinesha', 'u-krishna-rukmini'),
+    L('l-santosha', 'p-santosha', 'u-leela-solo'),
   ];
 
   return { persons, unions, childLinks };

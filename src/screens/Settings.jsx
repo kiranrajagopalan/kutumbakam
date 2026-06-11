@@ -122,7 +122,7 @@ export default function Settings() {
       <Card label="Demo">
         <Row
           title={demo ? 'Demo family is loaded' : 'Load the demo family'}
-          caption="A fictional 22-person family showing remarriage, adoption and an in-family marriage."
+          caption="A fictional 32-person family: remarriage, adoption, divorce, two in-law families, a missing partner and two people not yet connected."
           onClick={() => {
             const run = async () => {
               const n = await loadDemo();
