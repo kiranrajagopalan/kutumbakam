@@ -147,7 +147,14 @@ people are related, in Tulu and English.
   person lives relative to the last). User gestures stay 1:1 and cancel any
   glide; prefers-reduced-motion jumps; a timer watchdog lands the target
   where rAF is suppressed. Retargets respect the in-flight destination zoom.
-  Record panel fades in on swap (animate-fade-in). The record panel stays a
+  Record panel fades in on swap (animate-fade-in).
+  **Click grammar (12 Jun 2026, Kiran's second hardware pass): clicks
+  acquire, never dismiss.** Canvas taps glide-centre the person — selecting
+  from ANY surface makes the camera travel (zoom normalises upward only to
+  0.9; a deliberately closer zoom is never discarded). Same-person tap
+  re-centres; empty canvas does nothing — Esc and ✕ are the deliberate
+  closers (a missed click must not cost the record being read + a reflow).
+  Mobile keeps tap-elsewhere-to-dismiss (the card overlays and has no ✕). The record panel stays a
   docked flat peer (inspector pattern), never an overlay — overlay = the
   transact family; elevation marks transience only. `Sheet`
   renders as a centred dialog at lg (one primitive, both grammars; Esc closes
