@@ -33,11 +33,12 @@ and milestones.
   (README "Desktop grammar", styleguide §10).
 - **Embedded-preview quirk** (verified 12 Jun 2026): the in-app preview
   browser delivers NO matchMedia change events, NO ResizeObserver callbacks
-  and NO requestAnimationFrame ticks — and CSS animations freeze at their
+  and NO requestAnimationFrame ticks — CSS animations freeze at their
   from-frame (a `dialog-in` dialog measures 480×0.985 ≈ 473px and can sit at
-  opacity 0 in screenshots). Verify breakpoint crossings by reloading at the
-  target size, and never gate app behaviour on rAF/RO alone — pair with
-  deterministic effects (post-commit getBoundingClientRect).
+  opacity 0 in screenshots) — and setTimeout fires ~300–600ms LATE. Verify
+  breakpoint crossings by reloading at the target size; never gate app
+  behaviour on rAF/RO alone (pair with deterministic effects and timer
+  watchdogs); after animated view changes, wait ≥1.5s before measuring.
 - **Deploy**: GitHub Pages via `.github/workflows/deploy.yml` on push to main
   (repo `kiranrajagopalan/kutumbakam`, gh-pages branch, served at
   **https://karnatricks.com/kutumbakam/** — the account's user-site custom

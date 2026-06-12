@@ -138,7 +138,16 @@ people are related, in Tulu and English.
   docking/undocking (including panel close) and window resizes — the world
   point at the centre stays at the centre; a live selection re-centres
   explicitly (post-commit getBoundingClientRect, not rAF; baseline seeded on
-  data arrival). User pan/zoom is never touched. The record panel stays a
+  data arrival). User pan/zoom is never touched.
+  **Motion (12 Jun 2026, the delight round)**: the camera glides, never
+  teleports — every system-caused view change animates (cubic ease-in-out,
+  ~420ms; zoom buttons 200ms; pane reflows 320ms) with geometric zoom
+  interpolation; selection + trace light instantly while the camera travels;
+  glide chosen over fades (spatial continuity — you see where the next
+  person lives relative to the last). User gestures stay 1:1 and cancel any
+  glide; prefers-reduced-motion jumps; a timer watchdog lands the target
+  where rAF is suppressed. Retargets respect the in-flight destination zoom.
+  Record panel fades in on swap (animate-fade-in). The record panel stays a
   docked flat peer (inspector pattern), never an overlay — overlay = the
   transact family; elevation marks transience only. `Sheet`
   renders as a centred dialog at lg (one primitive, both grammars; Esc closes
