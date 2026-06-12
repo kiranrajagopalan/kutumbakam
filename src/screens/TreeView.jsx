@@ -335,14 +335,17 @@ export default function TreeView({ focusId = null, focusKey = 0, workspace = fal
     else setView(target);
   };
 
-  const centerOn = (id) => {
+  // fromTap: canvas clicks centre at YOUR zoom (normalising upward only to
+  // reading distance — the system never discards a closer zoom you chose);
+  // focus flows (index picks, You, capsules, deep links) normalise to 0.9.
+  const centerOn = (id, { fromTap = false } = {}) => {
     const L = layoutRef.current;
     const el = wrapRef.current;
     if (!L || !el) return false;
     const node = L.nodes.find((n) => n.id === id);
     if (!node) return false;
     const { width: cw, height: ch } = el.getBoundingClientRect();
-    const k = 0.9;
+    const k = fromTap ? Math.max(viewRef.current.k, 0.9) : 0.9;
     animateViewTo({ k, x: cw / 2 - node.cx * k, y: ch / 2.4 - node.cy * k });
     setSelectedId(id);
     focusPending.current = null;
@@ -602,6 +605,11 @@ export default function TreeView({ focusId = null, focusKey = 0, workspace = fal
         const c = clusters.find((cc) => cc.key === g.downCap);
         if (c) focusPending.current = c.anchorId;
         setExpandedCaps(new Set([...expandedRef.current, g.downCap]));
+      } else if (workspace) {
+        // Desktop grammar (12 Jun 2026): clicks acquire, never dismiss.
+        // Any person tap glides the camera to them (same person = re-centre);
+        // empty canvas does nothing — Esc and ✕ are the deliberate closers.
+        if (g.downPid) centerOn(g.downPid, { fromTap: true });
       } else {
         setSelectedId(g.downPid && g.downPid !== selectedId ? g.downPid : null);
       }
