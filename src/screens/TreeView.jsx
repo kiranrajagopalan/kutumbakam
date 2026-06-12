@@ -392,9 +392,7 @@ export default function TreeView({ focusId = null, focusKey = 0, workspace = fal
     // empty until data exists — a [] effect would capture null and never bind.
   }, [!!data]);
 
-  // Desktop: Esc clears the selection (open dialogs and form fields win),
-  // and a canvas resize — the record panel or index pane docking, a window
-  // resize — re-centres the selected person so the panel never hides them.
+  // Desktop: Esc clears the selection (open dialogs and form fields win).
   useEffect(() => {
     if (!workspace) return;
     const onKey = (e) => {
@@ -407,41 +405,47 @@ export default function TreeView({ focusId = null, focusKey = 0, workspace = fal
     return () => window.removeEventListener('keydown', onKey);
   }, [workspace]);
 
+  // One reflow law (12 Jun 2026, Kiran's call): through any system-caused
+  // canvas resize, the world point at the centre stays at the centre; a
+  // current selection is the stronger anchor and re-centres explicitly.
+  // System-caused = panes docking/undocking (the React effect below — also
+  // covers the panel CLOSING, when nobody is selected any more) and window
+  // resizes/rotation (the ResizeObserver — inert in the embedded preview,
+  // live in real browsers). User pan/zoom is never touched.
+  const lastSize = useRef(null);
+  const reflowCompensate = () => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const { width: w, height: h } = el.getBoundingClientRect();
+    const last = lastSize.current;
+    lastSize.current = { w, h };
+    if (!last || (Math.abs(last.w - w) <= 1 && Math.abs(last.h - h) <= 1)) return;
+    const id = selectedRef.current;
+    const node = id && layoutRef.current ? layoutRef.current.nodes.find((n) => n.id === id) : null;
+    if (node) {
+      setView((v) => ({ ...v, x: w / 2 - node.cx * v.k, y: h / 2.4 - node.cy * v.k }));
+    } else {
+      setView((v) => ({ ...v, x: v.x + (w - last.w) / 2, y: v.y + (h - last.h) / 2 }));
+    }
+  };
+
   useEffect(() => {
     const el = wrapRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
-    let last = null;
-    const ro = new ResizeObserver((entries) => {
-      const { width: w, height: h } = entries[0].contentRect;
-      if (last && (Math.abs(last.w - w) > 1 || Math.abs(last.h - h) > 1)) {
-        const id = selectedRef.current;
-        const node = id && layoutRef.current ? layoutRef.current.nodes.find((n) => n.id === id) : null;
-        if (node) {
-          setView((v) => ({ ...v, x: w / 2 - node.cx * v.k, y: h / 2.4 - node.cy * v.k }));
-        }
-      }
-      last = { w, h };
-    });
+    const ro = new ResizeObserver(reflowCompensate);
     ro.observe(el);
     return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!data]); // see the wheel effect — wrapRef is null until data exists
 
-  // Panes docking/undocking reflow the canvas in the same commit — recentre
-  // the selected person deterministically. getBoundingClientRect forces
-  // layout against the just-committed DOM, so no frame-wait is needed.
-  // The ResizeObserver above only covers real window resizes.
   const panelOpen = workspace && !!selectedId;
   useEffect(() => {
-    if (!workspace || !selectedRef.current) return;
-    const el = wrapRef.current;
-    const L = layoutRef.current;
-    const node = L && el ? L.nodes.find((n) => n.id === selectedRef.current) : null;
-    if (!node) return;
-    const { width, height } = el.getBoundingClientRect();
-    const v = viewRef.current;
-    setView({ ...v, x: width / 2 - node.cx * v.k, y: height / 2.4 - node.cy * v.k });
+    if (!workspace) return;
+    // !!data: the first run with a real canvas seeds the size baseline —
+    // without it, the first panel-open would swallow its own measurement.
+    reflowCompensate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspace, panelOpen, reflowKey]);
+  }, [workspace, panelOpen, reflowKey, !!data]);
 
   const zoomBy = (f) => {
     const el = wrapRef.current;
