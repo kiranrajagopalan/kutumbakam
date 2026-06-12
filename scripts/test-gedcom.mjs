@@ -25,6 +25,8 @@ check('Parvathi’s approximate birth → ABT', /2 DATE ABT 1924/.test(ged));
 check('nickname carried (NICK Akku)', /2 NICK Akku/.test(ged));
 check('native place carried (PLAC Kudla)', /2 PLAC Kudla/.test(ged));
 check('marriage year carried (DATE 1951)', /2 DATE 1951/.test(ged));
+check('full birth date carried (12 MAR 1934)', /2 DATE 12 MAR 1934/.test(ged));
+check('full death date carried (4 JUN 2015)', /2 DATE 4 JUN 2015/.test(ged));
 check('UTF-8 declared', /1 CHAR UTF-8/.test(ged));
 check('no PHON tag ever', !/PHON/.test(ged));
 check('no privateNotes leak marker', !/private/i.test(ged));

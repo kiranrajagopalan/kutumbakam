@@ -57,7 +57,98 @@ function wrap(ctx, text, maxWidth) {
   return lines;
 }
 
-export function renderRelationCard({ targetName, anchorFirst, primaryBody, alsoBodies = [] }) {
+// Draws the path schematic (layout from relationPath.js) at the given top
+// edge, centred, scaled to fit. Tones + initials only — photos would need
+// async image loads, and the card must stay synchronous. Returns the height
+// it used. Pass measure=true to get the height without drawing.
+function paintTrail(ctx, layout, meta, top, maxW, maxH, measure = false) {
+  if (!layout || !meta) return 0;
+  const s = Math.min(maxW / layout.width, maxH / layout.height, 2.4);
+  if (!measure) {
+    ctx.save();
+    ctx.translate((1080 - layout.width * s) / 2, top);
+    ctx.scale(s, s);
+    ctx.lineCap = 'round';
+    for (const l of layout.links) {
+      ctx.strokeStyle = ACCENT;
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash(l.dashed ? [4, 4] : []);
+      ctx.stroke(new Path2D(l.d));
+      ctx.setLineDash([]);
+      if (l.dot) {
+        ctx.fillStyle = ACCENT;
+        ctx.beginPath();
+        ctx.arc(l.dot.x, l.dot.y, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (l.heart) {
+        ctx.fillStyle = PAPER;
+        ctx.beginPath();
+        ctx.arc(l.heart.x, l.heart.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.save();
+        ctx.translate(l.heart.x, l.heart.y);
+        ctx.scale(0.46, 0.46);
+        ctx.translate(-12, -12.2);
+        const heart = new Path2D(HEART_D);
+        if (l.former) {
+          ctx.strokeStyle = ACCENT;
+          ctx.lineWidth = 2.6;
+          ctx.stroke(heart);
+        } else {
+          ctx.fillStyle = ACCENT;
+          ctx.fill(heart);
+        }
+        ctx.restore();
+      }
+    }
+    layout.nodes.forEach((n, i) => {
+      const m = meta[i];
+      if (!m) return;
+      if (m.isSelf) {
+        ctx.strokeStyle = ACCENT;
+        ctx.lineWidth = 1.4;
+        ctx.setLineDash([2.5, 3.5]);
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, 20, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      ctx.fillStyle = m.bg;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.textAlign = 'center';
+      ctx.fillStyle = m.fg;
+      ctx.font = `600 11px ${DISPLAY}`;
+      ctx.fillText(m.initials, n.x, n.y + 4);
+      ctx.font = `500 11.5px ${BODY}`;
+      ctx.strokeStyle = PAPER;
+      ctx.lineWidth = 3.5;
+      ctx.lineJoin = 'round';
+      ctx.strokeText(m.name, n.x, n.y + 29);
+      ctx.fillStyle = INK;
+      ctx.fillText(m.name, n.x, n.y + 29);
+      if (m.word) {
+        ctx.font = `400 10.5px ${BODY}`;
+        ctx.strokeText(m.word, n.x, n.y + 41);
+        ctx.fillStyle = INK_FAINT;
+        ctx.fillText(m.word, n.x, n.y + 41);
+      }
+    });
+    ctx.restore();
+  }
+  return layout.height * s;
+}
+
+export function renderRelationCard({
+  targetName,
+  anchorFirst,
+  primaryBody,
+  alsoBodies = [],
+  trailLayout = null,
+  trailMeta = null,
+}) {
   const S = 1080;
   const canvas = document.createElement('canvas');
   canvas.width = S;
@@ -112,15 +203,30 @@ export function renderRelationCard({ targetName, anchorFirst, primaryBody, alsoB
     return wrap(ctx, `also ${anchorFirst}’s ${b}`, maxW);
   });
 
-  // vertical centring of the middle block between eyebrow and footer
-  const blockH = nameSize + 56 + chainLines.length * chainLH + (alsoLines.length ? 28 + alsoLines.length * alsoLH : 0);
-  let y = 216 + (S - 120 - 216 - blockH) / 2 + nameSize;
+  // vertical centring of the middle block between eyebrow and footer —
+  // the schematic (when present) sits between the name and the chain.
+  const avail = S - 120 - 216;
+  const textH =
+    nameSize + 56 + chainLines.length * chainLH + (alsoLines.length ? 28 + alsoLines.length * alsoLH : 0);
+  const trailH = trailLayout
+    ? paintTrail(ctx, trailLayout, trailMeta, 0, 820, Math.max(140, avail - textH - 88), true)
+    : 0;
+  const blockH = textH + (trailH ? trailH + 44 : 0);
+  let y = 216 + (avail - blockH) / 2 + nameSize;
 
   ctx.fillStyle = INK;
   ctx.font = `600 ${nameSize}px ${DISPLAY}`;
   ctx.fillText(targetName, cx, y);
-  y += 56;
+  y += 12;
 
+  if (trailH) {
+    paintTrail(ctx, trailLayout, trailMeta, y + 20, 820, Math.max(140, avail - textH - 88));
+    y += trailH + 44;
+  } else {
+    y += 44;
+  }
+
+  ctx.fillStyle = INK;
   ctx.font = `500 ${chainSize}px ${BODY}`;
   for (const line of chainLines) {
     y += chainLH;

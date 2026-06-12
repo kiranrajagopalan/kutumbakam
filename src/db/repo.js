@@ -18,10 +18,12 @@ export function blankPerson(fields = {}) {
     photo: null,
     isAlive: true,
     birthYear: null,
-    birthDate: '',
+    birthMonth: null, // 1–12, optional — birthdays can be known without a year
+    birthDay: null, // 1–31, optional
     birthApprox: false,
     deathYear: null,
-    deathDate: '',
+    deathMonth: null,
+    deathDay: null,
     deathApprox: false,
     birthOrder: null, // 1 = eldest among siblings; used when dates are unknown
     nativePlace: '',

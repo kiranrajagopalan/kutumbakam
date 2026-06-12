@@ -18,10 +18,10 @@ export function demoGraph() {
     // Paternal grandparents' generation
     P('p-achutha', { name: 'Achutha', gender: 'male', isAlive: false, birthYear: 1921, deathYear: 1988, nativePlace: 'Kudla', occupation: 'Areca trader' }),
     P('p-parvathi', { name: 'Parvathi', gender: 'female', isAlive: false, birthYear: 1924, deathYear: 1950, birthApprox: true }),
-    P('p-devaki', { name: 'Devaki', gender: 'female', isAlive: false, birthYear: 1930, deathYear: 2015, nativePlace: 'Karkala' }),
+    P('p-devaki', { name: 'Devaki', gender: 'female', isAlive: false, birthYear: 1930, deathYear: 2015, deathMonth: 6, deathDay: 4, nativePlace: 'Karkala' }),
     // Maternal grandparents' generation
     P('p-subbanna', { name: 'Subbanna', gender: 'male', isAlive: false, birthYear: 1925, deathYear: 1999, nativePlace: 'Udupi', occupation: 'School teacher' }),
-    P('p-akkamma', { name: 'Akkamma', gender: 'female', birthYear: 1934, nickname: 'Akku', nativePlace: 'Udupi' }),
+    P('p-akkamma', { name: 'Akkamma', gender: 'female', birthYear: 1934, birthMonth: 3, birthDay: 12, nickname: 'Akku', nativePlace: 'Udupi' }),
 
     // Parents' generation — paternal
     P('p-krishna', { name: 'Krishna', gender: 'male', birthYear: 1948, birthOrder: 1, currentCity: 'Mumbai', occupation: 'Bank officer' }),
@@ -38,7 +38,7 @@ export function demoGraph() {
     P('p-sharada', { name: 'Sharada', gender: 'female', birthYear: 1962 }),
 
     // Your generation
-    P('p-deepak', { name: 'Deepak', gender: 'male', birthYear: 1985, nickname: 'Deepu', isSelf: true, currentCity: 'Bengaluru', occupation: 'Designer' }),
+    P('p-deepak', { name: 'Deepak', gender: 'male', birthYear: 1985, birthMonth: 8, birthDay: 14, nickname: 'Deepu', isSelf: true, currentCity: 'Bengaluru', occupation: 'Designer' }),
     P('p-divya', { name: 'Divya', gender: 'female', birthYear: 1989, currentCity: 'Mangaluru' }),
     P('p-nithya', { name: 'Nithya', gender: 'female', birthYear: 1988 }),
     P('p-prakash', { name: 'Prakash', gender: 'male', birthYear: 1980 }),
@@ -46,7 +46,7 @@ export function demoGraph() {
 
     // Children's generation
     P('p-ira', { name: 'Ira', gender: 'female', birthYear: 2018 }),
-    P('p-tanvi', { name: 'Tanvi', gender: 'female', birthYear: 2012 }),
+    P('p-tanvi', { name: 'Tanvi', gender: 'female', birthYear: 2012, birthMonth: 11, birthDay: 2 }),
 
     // Nithya's side — an in-law family (extended lens, folds into a capsule)
     P('p-janardhana', { name: 'Janardhana', gender: 'male', birthYear: 1958, nativePlace: 'Moodabidri', occupation: 'Rice miller' }),

@@ -11,6 +11,8 @@ export default function QuickPersonForm({ presetGender = '', submitLabel = 'Add'
   const [birthYear, setBirthYear] = useState(null);
   const [birthApprox, setBirthApprox] = useState(false);
   const [isAlive, setIsAlive] = useState(true);
+  const [deathYear, setDeathYear] = useState(null);
+  const [deathApprox, setDeathApprox] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function submit() {
@@ -27,7 +29,8 @@ export default function QuickPersonForm({ presetGender = '', submitLabel = 'Add'
         birthYear,
         birthApprox,
         isAlive,
-        deathYear: null,
+        deathYear: isAlive ? null : deathYear,
+        deathApprox: isAlive ? false : deathApprox,
       });
     } finally {
       setBusy(false);
@@ -57,6 +60,15 @@ export default function QuickPersonForm({ presetGender = '', submitLabel = 'Add'
         checked={isAlive}
         onChange={setIsAlive}
       />
+      {!isAlive && (
+        <YearField
+          label="Passed (optional)"
+          year={deathYear}
+          approx={deathApprox}
+          onYear={setDeathYear}
+          onApprox={setDeathApprox}
+        />
+      )}
       <Button onClick={submit} disabled={busy} className="mt-1 w-full">
         {submitLabel}
       </Button>

@@ -58,7 +58,14 @@ people are related, in Tulu and English.
   §10 + README "Desktop grammar". Print + projection-mode ideas parked (below).
 
 ## Data model (`src/db/`)
-- `persons` — identity, photo (small webp Blob), fuzzy years (`birthYear` + `birthApprox`),
+- `persons` — identity, photo (small webp Blob), fuzzy dates (`birthYear` +
+  `birthApprox`, plus optional `birthMonth`/`birthDay` and the death
+  equivalents — added 12 Jun 2026 for the future birthday/shashtipoorthi
+  calendar; nothing mandatory, a birthday can be known without its year).
+  Display rule: full dates render on the person page header only; rows,
+  pickers and tree sublabels stay year-only. `ageOf` is exact when the
+  birthday is known; elder/younger and sibling sort compare only date parts
+  BOTH people know ("March 1960" vs "1960" stays undecided),
   `birthOrder` (1 = eldest; kinship terms need elder/younger), roots (native place,
   family house, current city), contact (sensitive), stories, `privateNotes` (sensitive),
   `isSelf` anchor.
@@ -86,6 +93,11 @@ people are related, in Tulu and English.
   and step links were modelled and rendered from day 1 but not enterable
   until now (`ensureParentUnion` upgrades the anchor's own link when asked,
   never downgrades to biological).
+  **Dates round (12 Jun 2026)**: toggling Living off in the quick-add now
+  reveals a "Passed (optional)" year field (it previously required a trip to
+  the edit form); the edit form's Born/Passed rows gained optional Day +
+  Month (`DateField`); GEDCOM emits full dates ("12 MAR 1934", "MAR 1934")
+  when known.
 - **M2 — Tree view** (core shipped 10 Jun 2026): whole-family zoomable/pannable SVG
   tree at `#/tree` — custom layout (see above), pinch/wheel/drag, fit button,
   tap-select with info card, self-ring, extended-family nodes dimmed + hideable
@@ -152,6 +164,18 @@ people are related, in Tulu and English.
   paper-&-ink image (names + chain only — contact info can't appear by
   construction; `src/lib/relationCard.js`), shared via `navigator.share`
   files (kept synchronous inside the tap gesture) with a download fallback.
+  **Visual snapshot shipped (12 Jun 2026)**: the primary chain also draws as
+  a **path schematic** — only the people on the path, vertical = generation,
+  in the line grammar (∩ + junction dot = via their parents, heart = married
+  / outline = former, dashes = adoptive/step), accent-traced. Chosen on sight
+  over a real-tree crop (dense, illegible at card scale) and a breadcrumb
+  strip (structure-blind); the canvas itself remains the positional answer.
+  The engine exposes `primary.trail` (the route through real people,
+  pre-run/term collapse — the diagram shows what the sentence compresses,
+  e.g. "mother-in-law" draws as wife → her mother). Geometry in
+  `src/lib/relationPath.js`; SVG (photos + tones) under the sentence in the
+  Relation section; the same layout painted onto the share card via Path2D —
+  tones + initials only, keeping the card synchronous and photo-free.
   **Remaining for M3.1**: Tulu term table — waiting on Kiran's words; the
   `tcy` slot table is ready.
 - **M4 — Sharing v1**: the read-only published family view is now the logged-out
@@ -163,6 +187,9 @@ people are related, in Tulu and English.
   non-standard `PEDI step`), FAM with HUSB/WIFE/MARR/DIV/CHIL; the sensitive
   class never appears — the builder doesn't know those fields exist.
   Structural tests: `node scripts/test-gedcom.mjs`.
+- **Parked — birthday calendar**: the day/month fields exist to feed it —
+  upcoming birthdays, who turns 60 (shashtipoorthi) soon, remembrance days.
+  Build when Kiran picks it up.
 - **Parked — print & projection (Kiran will pick these up)**: print artifacts
   in rough cost order — (a) person-page print stylesheet ("family record"
   sheet), (b) tree poster view (fit-to-A4-landscape/A3/A2, title block,

@@ -76,6 +76,70 @@ export function YearField({ label, year, approx, onYear, onApprox }) {
   );
 }
 
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// Year + optional month/day (12 Jun 2026: nothing mandatory — a birthday can
+// be known without its year, a year without its day). Circa qualifies the
+// year only. Powers the future birthday/shashtipoorthi calendar.
+export function DateField({ label, year, approx, month, day, onYear, onApprox, onMonth, onDay }) {
+  return (
+    <div>
+      {label && <Label>{label}</Label>}
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          inputMode="numeric"
+          value={day ?? ''}
+          placeholder="DD"
+          aria-label="Day"
+          onChange={(e) => {
+            const v = e.target.value.replace(/\D/g, '').slice(0, 2);
+            const n = v ? Number(v) : null;
+            if (n !== null && (n < 1 || n > 31)) return;
+            onDay(n);
+          }}
+          className={`${inputCls} tnum w-16`}
+        />
+        <select
+          value={month ?? ''}
+          aria-label="Month"
+          onChange={(e) => onMonth(e.target.value ? Number(e.target.value) : null)}
+          className={`${inputCls} min-w-0 flex-1 ${month ? '' : 'text-ink-faint'}`}
+        >
+          <option value="">Month</option>
+          {MONTH_NAMES.map((m, i) => (
+            <option key={m} value={i + 1}>
+              {m}
+            </option>
+          ))}
+        </select>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={year ?? ''}
+          placeholder="YYYY"
+          aria-label="Year"
+          onChange={(e) => {
+            const v = e.target.value.replace(/\D/g, '').slice(0, 4);
+            onYear(v ? Number(v) : null);
+          }}
+          className={`${inputCls} tnum w-24`}
+        />
+        <button
+          type="button"
+          onClick={() => onApprox(!approx)}
+          aria-pressed={approx}
+          className={`rounded-full border px-3 py-2 text-[13px] font-medium transition-colors ${
+            approx ? 'border-accent bg-accent-soft text-accent-deep' : 'border-line bg-card text-ink-soft'
+          }`}
+        >
+          circa
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function NumberField({ label, value, onChange, placeholder, hint }) {
   return (
     <label className="block">

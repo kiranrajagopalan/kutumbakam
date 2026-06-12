@@ -11,6 +11,10 @@
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
+// Compose "Y-M[-D]" from the optional day/month fields — GEDCOM dates want a
+// year, so a birthday known without its year falls back to the plain-year path.
+const isoOf = (y, m, d) => (y && m ? (d ? `${y}-${m}-${d}` : `${y}-${m}`) : '');
+
 function gedDate(dateStr, year, approx) {
   if (dateStr) {
     const [y, m, d] = dateStr.split('-').map(Number);
@@ -65,14 +69,14 @@ export function buildGedcom({ persons, unions, childLinks }) {
     if (p.nickname) push(2, 'NICK', p.nickname);
     push(1, 'SEX', p.gender === 'male' ? 'M' : p.gender === 'female' ? 'F' : 'U');
 
-    const birth = gedDate(p.birthDate, p.birthYear, p.birthApprox);
+    const birth = gedDate(isoOf(p.birthYear, p.birthMonth, p.birthDay), p.birthYear, p.birthApprox);
     if (birth || p.nativePlace) {
       push(1, 'BIRT');
       if (birth) push(2, 'DATE', birth);
       if (p.nativePlace) push(2, 'PLAC', p.nativePlace);
     }
     if (!p.isAlive) {
-      const death = gedDate(p.deathDate, p.deathYear, p.deathApprox);
+      const death = gedDate(isoOf(p.deathYear, p.deathMonth, p.deathDay), p.deathYear, p.deathApprox);
       push(1, 'DEAT', death ? '' : 'Y');
       if (death) push(2, 'DATE', death);
     }

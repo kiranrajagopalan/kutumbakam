@@ -10,6 +10,7 @@
 // a separate path from the sibling step, and "wife" can't be respelled as
 // "child's mother".
 import { TERMS } from './kinshipTerms.js';
+import { compareLifeDates } from './format.js';
 
 const MAX_STEPS = 9; // longest chain worth spelling out
 const MAX_PATHS = 60; // DFS safety valve on dense graphs
@@ -122,13 +123,12 @@ function collapseHalfSiblings(steps) {
   return out;
 }
 
-// 'elder' / 'younger' / '' — only when the data actually says so (dates or
-// years that differ, else explicit birth order that differs). compareBirth's
-// name fallback must never decide seniority.
+// 'elder' / 'younger' / '' — only when the data actually says so (date parts
+// both sides know, else explicit birth order that differs). Never decided by
+// a name fallback, and "March 1960" vs "1960" stays undecided.
 function elderFlag(to, from) {
-  const ka = to.birthDate || (to.birthYear ? String(to.birthYear) : null);
-  const kb = from.birthDate || (from.birthYear ? String(from.birthYear) : null);
-  if (ka && kb && ka !== kb) return ka < kb ? 'elder' : 'younger';
+  const c = compareLifeDates(to, from, 'birth');
+  if (c) return c < 0 ? 'elder' : 'younger';
   if (to.birthOrder != null && from.birthOrder != null && to.birthOrder !== from.birthOrder) {
     return to.birthOrder < from.birthOrder ? 'elder' : 'younger';
   }
@@ -282,6 +282,7 @@ export function describeRelationship(graph, anchorId, targetId, opts = {}) {
     seen.add(body);
     rendered.push({
       body,
+      collapsed,
       steps: collapsed.length,
       rawSteps: path.length,
       spouses: collapsed.filter((s) => s.kind === 'spouse').length,
@@ -293,10 +294,31 @@ export function describeRelationship(graph, anchorId, targetId, opts = {}) {
 
   const primary = rendered[0];
   const also = rendered.slice(1).filter((r) => r.steps <= primary.steps + 3).slice(0, 3);
+
+  // The primary path as drawable nodes — the route through real people,
+  // pre-run/term collapse (the diagram shows the structure the sentence
+  // compresses). First entry is the anchor; each later entry arrives via its
+  // step word ("mother", "younger brother", …).
+  const trail = [
+    { id: anchorId },
+    ...primary.collapsed.map((s) => ({
+      id: s.toId,
+      kind: s.kind === 'half' ? 'sibling' : s.kind,
+      word: tokenFor(s, ix).word,
+      dashed:
+        s.kind === 'parent' || s.kind === 'child'
+          ? s.rel !== 'biological'
+          : s.kind === 'sibling'
+            ? s.enterRel !== 'biological' || s.exitRel !== 'biological'
+            : false,
+      former: s.kind === 'spouse' && s.status === 'divorced',
+    })),
+  ];
+
   return {
     kind: 'related',
     head: anchor.isSelf ? 'your' : `${(anchor.name || '').split(/\s+/)[0]}’s`,
-    primary: { body: primary.body, steps: primary.steps },
+    primary: { body: primary.body, steps: primary.steps, trail },
     also: also.map((r) => ({ body: r.body, steps: r.steps })),
     more: Math.max(0, rendered.length - 1 - also.length),
   };

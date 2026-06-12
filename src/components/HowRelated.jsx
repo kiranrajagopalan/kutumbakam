@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import Sheet from './Sheet.jsx';
 import PersonRow from './PersonRow.jsx';
+import RelationPathSvg from './RelationPathSvg.jsx';
 import { getRelationship, getSelf, listPersons, getNameHints } from '../db/repo.js';
 import { renderRelationCard, dataUrlToFile } from '../lib/relationCard.js';
+import { layoutRelationPath } from '../lib/relationPath.js';
+import { toneFor, initialsOf } from '../lib/avatar.js';
 import { toast } from '../lib/toast.js';
 
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -29,6 +32,7 @@ export default function HowRelated({ person }) {
   );
   const everyone = useLiveQuery(() => listPersons(), []) || [];
   const hints = useLiveQuery(() => getNameHints(), []);
+  const byId = useMemo(() => new Map(everyone.map((p) => [p.id, p])), [everyone]);
 
   const anchor = data?.anchor;
   const result = data?.result;
@@ -78,6 +82,11 @@ export default function HowRelated({ person }) {
             <p className="px-2.5 pt-2 pb-1 text-[15px] font-medium leading-snug">
               {cap(`${result.head} ${result.primary.body}`)}.
             </p>
+            {result.primary.trail && byId.size > 0 && (
+              <div className="px-2.5 pb-1 pt-2">
+                <RelationPathSvg trail={result.primary.trail} personsById={byId} />
+              </div>
+            )}
             {result.also.map((r) => (
               <p key={r.body} className="px-2.5 pb-1 text-[13px] leading-snug text-ink-soft">
                 also {result.head} {r.body}
@@ -93,12 +102,31 @@ export default function HowRelated({ person }) {
                 type="button"
                 onClick={() => {
                   // Synchronous end-to-end so navigator.share stays inside
-                  // the tap gesture (Safari drops late share sheets).
+                  // the tap gesture (Safari drops late share sheets). The
+                  // schematic ships as pure data: tones + initials only
+                  // (photos would need async loads — and stay private).
+                  const trailLayout = result.primary.trail ? layoutRelationPath(result.primary.trail) : null;
+                  const trailMeta = trailLayout
+                    ? result.primary.trail.map((t) => {
+                        const p = byId.get(t.id);
+                        const tone = p ? toneFor(p.id) : { bg: '#e9dfd2', fg: '#5c4a33' };
+                        return {
+                          initials: p ? initialsOf(p.name) : '·',
+                          bg: tone.bg,
+                          fg: tone.fg,
+                          isSelf: !!p?.isSelf,
+                          name: (p?.name || '·').split(/\s+/)[0],
+                          word: t.word || (p?.isSelf ? 'you' : null),
+                        };
+                      })
+                    : null;
                   const url = renderRelationCard({
                     targetName: person.name,
                     anchorFirst: (anchor?.name || '').split(/\s+/)[0],
                     primaryBody: result.primary.body,
                     alsoBodies: result.also.map((r) => r.body),
+                    trailLayout,
+                    trailMeta,
                   });
                   const file = dataUrlToFile(url, `kutumbakam-${person.name.split(/\s+/)[0]}.png`);
                   if (navigator.share) {

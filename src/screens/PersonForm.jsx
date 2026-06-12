@@ -6,7 +6,7 @@ import { ChevronLeft, Camera } from '../components/icons.jsx';
 import {
   TextField,
   TextArea,
-  YearField,
+  DateField,
   NumberField,
   Toggle,
   GenderSeg,
@@ -132,20 +132,28 @@ export default function PersonForm({ id }) {
       </Group>
 
       <Group label="Dates">
-        <YearField
+        <DateField
           label="Born"
           year={form.birthYear}
           approx={form.birthApprox}
+          month={form.birthMonth}
+          day={form.birthDay}
           onYear={set('birthYear')}
           onApprox={set('birthApprox')}
+          onMonth={set('birthMonth')}
+          onDay={set('birthDay')}
         />
         {!form.isAlive && (
-          <YearField
+          <DateField
             label="Passed"
             year={form.deathYear}
             approx={form.deathApprox}
+            month={form.deathMonth}
+            day={form.deathDay}
             onYear={set('deathYear')}
             onApprox={set('deathApprox')}
+            onMonth={set('deathMonth')}
+            onDay={set('deathDay')}
           />
         )}
         <NumberField

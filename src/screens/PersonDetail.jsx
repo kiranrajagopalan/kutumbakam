@@ -192,7 +192,7 @@ export default function PersonDetail({ id, variant = 'page', onClose, treeAction
           <h1 className="font-display text-[27px] font-semibold leading-[1.12]">{person.name}</h1>
           {person.nickname && <div className="mt-0.5 text-[15px] text-ink-soft">“{person.nickname}”</div>}
           <div className="tnum mt-1.5 text-[14px] text-ink-soft">
-            {lifeSpan(person)}
+            {lifeSpan(person, true)}
             {age != null && ` · ${age}`}
           </div>
         </div>
