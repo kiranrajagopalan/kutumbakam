@@ -98,6 +98,16 @@ people are related, in Tulu and English.
   the edit form); the edit form's Born/Passed rows gained optional Day +
   Month (`DateField`); GEDCOM emits full dates ("12 MAR 1934", "MAR 1934")
   when known.
+  **Transliteration-agnostic search (12 Jun 2026)**: Indian names have no
+  single romanization (Sri/Shri/Shree/Sree), so all four search boxes
+  (people list, workspace index, relation picker, link-existing picker)
+  match on a folded phonetic key — `src/lib/nameSearch.js` encodes the
+  convention families (sibilants, aspiration, ksh↔x, v↔w, long vowels,
+  au-glides, zh↔l, ck↔k, final y↔i, initial hr↔r, gemination, diacritics);
+  raw substring matches first so mid-digraph typing never regresses.
+  28 assertions: `node scripts/test-name-search.mjs`. Deliberate limit:
+  vowel-quality swaps (Krishna/Krushna) stay distinct — folding them would
+  mangle other names.
 - **M2 — Tree view** (core shipped 10 Jun 2026): whole-family zoomable/pannable SVG
   tree at `#/tree` — custom layout (see above), pinch/wheel/drag, fit button,
   tap-select with info card, self-ring, extended-family nodes dimmed + hideable
