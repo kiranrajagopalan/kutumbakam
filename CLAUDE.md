@@ -27,6 +27,15 @@ and milestones.
   members.
 - Dev server: registered as `kutumbakam` in repo-wide `.claude/launch.json`, port 5180.
   Build with `npm run build` before declaring done.
+- **One responsive fork: 1024px** (`useIsDesktop` for behaviour, `lg:` for
+  styling). Desktop = the workspace (index | canvas | record) + dialogs;
+  below it the touch grammar. The desktop laws live in `../paper-ink/`
+  (README "Desktop grammar", styleguide §10).
+- **Embedded-preview quirk** (verified 12 Jun 2026): the in-app preview
+  browser delivers NO matchMedia change events, NO ResizeObserver callbacks
+  and NO requestAnimationFrame ticks. Verify breakpoint crossings by
+  reloading at the target size, and never gate app behaviour on rAF/RO alone
+  — pair with deterministic effects (post-commit getBoundingClientRect).
 - **Deploy**: GitHub Pages via `.github/workflows/deploy.yml` on push to main
   (repo `kiranrajagopalan/kutumbakam`, gh-pages branch, served at
   **https://karnatricks.com/kutumbakam/** — the account's user-site custom

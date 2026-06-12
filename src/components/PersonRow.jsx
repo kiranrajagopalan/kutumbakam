@@ -4,7 +4,7 @@ import { lifeSpan } from '../lib/format.js';
 // One person, one row. `chip` is a tiny status tag ("adopted", "half", …),
 // `meta` is appended to the secondary line ("m. 1982"), `hint` is the
 // same-name disambiguator ("s/o Achutha") and leads the line when present.
-export default function PersonRow({ person, chip, meta, hint, onClick, trailing }) {
+export default function PersonRow({ person, chip, meta, hint, onClick, trailing, active = false }) {
   const chips = [chip, person.isSelf && 'You'].filter(Boolean);
   const sub = [hint, person.nickname && `“${person.nickname}”`, lifeSpan(person), meta]
     .filter(Boolean)
@@ -13,7 +13,9 @@ export default function PersonRow({ person, chip, meta, hint, onClick, trailing 
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-[13px] px-2.5 py-2 text-left transition-colors hover:bg-accent-soft/35 active:bg-accent-soft/60"
+      className={`flex w-full items-center gap-3 rounded-[13px] px-2.5 py-2 text-left transition-colors ${
+        active ? 'bg-accent-soft/60' : 'hover:bg-accent-soft/35 active:bg-accent-soft/60'
+      }`}
     >
       <Avatar person={person} size="md" showSelf={false} />
       <span className="min-w-0 flex-1">

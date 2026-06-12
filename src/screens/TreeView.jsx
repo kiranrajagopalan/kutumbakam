@@ -7,8 +7,9 @@ import { describeRelationship } from '../lib/relationship.js';
 import { toneFor, initialsOf, mixHex } from '../lib/avatar.js';
 import { photoUrlFor } from '../lib/photos.js';
 import { lifeSpan } from '../lib/format.js';
-import { ListGlyph, FitGlyph } from '../components/icons.jsx';
+import { ListGlyph, FitGlyph, LocateGlyph } from '../components/icons.jsx';
 import Avatar from '../components/Avatar.jsx';
+import PersonDetail from './PersonDetail.jsx';
 import { nav } from '../lib/router.js';
 
 const AV_R = 23;
@@ -47,7 +48,10 @@ function TreeNode({ n, kin, selected, hint }) {
   const label = first.length > 11 ? `${first.slice(0, 10)}…` : first;
   const sub = hint || (p.birthYear ? `${p.birthApprox ? 'c. ' : ''}${p.birthYear}` : null);
   return (
-    <g data-pid={p.id} transform={`translate(${n.cx} ${n.y})`} style={{ cursor: 'pointer' }}>
+    <g className="tree-node" data-pid={p.id} transform={`translate(${n.cx} ${n.y})`} style={{ cursor: 'pointer' }}>
+      {!selected && (
+        <circle className="hover-ring" cy={AVATAR_Y} r={AV_R + 5} fill="none" stroke="var(--color-accent)" strokeWidth="1.5" />
+      )}
       {selected && (
         <circle cy={AVATAR_Y} r={AV_R + 5} fill="none" stroke="var(--color-accent)" strokeWidth="2.5" />
       )}
@@ -121,7 +125,7 @@ function CapsuleNode({ cap }) {
   const text = `${cap.label} ▸ ${cap.count}`;
   const w = text.length * 6.2 + 26;
   return (
-    <g data-capsule={cap.key} transform={`translate(${cap.x} ${cap.y})`} style={{ cursor: 'pointer' }}>
+    <g className="tree-capsule" data-capsule={cap.key} transform={`translate(${cap.x} ${cap.y})`} style={{ cursor: 'pointer' }}>
       <line x1="0" y1="13" x2="0" y2="27" stroke="var(--color-thread)" strokeWidth="1.5" strokeDasharray="3 3" />
       <rect x={-w / 2} y={-13} width={w} height={26} rx={13} fill="var(--color-card)" stroke="var(--color-line)" />
       <text textAnchor="middle" dy="0.34em" fill="var(--color-ink-soft)" style={{ font: '600 11px var(--font-body)' }}>
@@ -170,7 +174,10 @@ function Pill({ children, onClick, active, ariaLabel }) {
   );
 }
 
-export default function TreeView({ focusId = null }) {
+// In the desktop workspace, TreeView also hosts the docked record panel
+// (selection and the panel are the same state). `focusKey` lets the same
+// person be re-focused; `onSelectionChange` mirrors selection to the index.
+export default function TreeView({ focusId = null, focusKey = 0, workspace = false, onSelectionChange, reflowKey = 0 }) {
   const data = useLiveQuery(() => getTreeData(), []);
   const [selectedId, setSelectedId] = useState(null);
   const [expandedCaps, setExpandedCaps] = useState(() => new Set());
@@ -187,6 +194,12 @@ export default function TreeView({ focusId = null }) {
   // Set by fold/unfold actions: the next layout change keeps the user's
   // current pan/zoom instead of refitting.
   const preserveView = useRef(false);
+  const selectedRef = useRef(null);
+  selectedRef.current = selectedId;
+
+  useEffect(() => {
+    onSelectionChange?.(selectedId);
+  }, [selectedId, onSelectionChange]);
 
   const clusters = useMemo(() => (data?.classes ? inLawClusters(data, data.classes) : []), [data]);
 
@@ -296,9 +309,13 @@ export default function TreeView({ focusId = null }) {
       setExpandedCaps(new Set([...expandedRef.current, c.key]));
       return; // the layout change re-triggers centring below
     }
-    centerOn(focusId);
+    if (!centerOn(focusId) && layoutRef.current?.unplaced.includes(focusId)) {
+      // Not yet connected: no node to centre on — open the record alone.
+      setSelectedId(focusId);
+      focusPending.current = null;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusId, data, clusters]);
+  }, [focusId, focusKey, data, clusters]);
 
   // Initial view: whole tree if readable, else centred on you; branches fit.
   // Runs on every layout identity (data edits can change the layout without
@@ -310,7 +327,11 @@ export default function TreeView({ focusId = null }) {
   useLayoutEffect(() => {
     if (!layout || !wrapRef.current) return;
     if (focusPending.current) {
-      centerOn(focusPending.current);
+      const pid = focusPending.current;
+      if (!centerOn(pid) && layout.unplaced.includes(pid)) {
+        setSelectedId(pid);
+        focusPending.current = null;
+      }
       return;
     }
     const key = `${layout.size.width}x${layout.size.height}|${branchRootId || ''}`;
@@ -367,7 +388,81 @@ export default function TreeView({ focusId = null }) {
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, []);
+    // !!data: the first render returns null while Dexie loads, so wrapRef is
+    // empty until data exists — a [] effect would capture null and never bind.
+  }, [!!data]);
+
+  // Desktop: Esc clears the selection (open dialogs and form fields win),
+  // and a canvas resize — the record panel or index pane docking, a window
+  // resize — re-centres the selected person so the panel never hides them.
+  useEffect(() => {
+    if (!workspace) return;
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (e.target.closest?.('input, textarea, select')) return;
+      setSelectedId(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [workspace]);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    let last = null;
+    const ro = new ResizeObserver((entries) => {
+      const { width: w, height: h } = entries[0].contentRect;
+      if (last && (Math.abs(last.w - w) > 1 || Math.abs(last.h - h) > 1)) {
+        const id = selectedRef.current;
+        const node = id && layoutRef.current ? layoutRef.current.nodes.find((n) => n.id === id) : null;
+        if (node) {
+          setView((v) => ({ ...v, x: w / 2 - node.cx * v.k, y: h / 2.4 - node.cy * v.k }));
+        }
+      }
+      last = { w, h };
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [!!data]); // see the wheel effect — wrapRef is null until data exists
+
+  // Panes docking/undocking reflow the canvas in the same commit — recentre
+  // the selected person deterministically. getBoundingClientRect forces
+  // layout against the just-committed DOM, so no frame-wait is needed.
+  // The ResizeObserver above only covers real window resizes.
+  const panelOpen = workspace && !!selectedId;
+  useEffect(() => {
+    if (!workspace || !selectedRef.current) return;
+    const el = wrapRef.current;
+    const L = layoutRef.current;
+    const node = L && el ? L.nodes.find((n) => n.id === selectedRef.current) : null;
+    if (!node) return;
+    const { width, height } = el.getBoundingClientRect();
+    const v = viewRef.current;
+    setView({ ...v, x: width / 2 - node.cx * v.k, y: height / 2.4 - node.cy * v.k });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace, panelOpen, reflowKey]);
+
+  const zoomBy = (f) => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const v = viewRef.current;
+    const { width, height } = el.getBoundingClientRect();
+    const k = clamp(v.k * f, 0.12, 3);
+    const ff = k / v.k;
+    setView({ k, x: width / 2 - (width / 2 - v.x) * ff, y: height / 2 - (height / 2 - v.y) * ff });
+  };
+
+  // The "find me" control — the map idiom. Exits branch view when you
+  // aren't part of the current branch.
+  const locateSelf = () => {
+    const selfId = data?.self?.id;
+    if (!selfId) return;
+    if (!centerOn(selfId)) {
+      focusPending.current = selfId;
+      setBranchRootId(null);
+    }
+  };
 
   // Capture the pointer only once a drag actually starts — capturing on
   // touch-down steals the click that buttons and node taps need.
@@ -472,9 +567,10 @@ export default function TreeView({ focusId = null }) {
   };
 
   return (
+    <div className={`flex ${workspace ? 'h-full' : 'h-dvh'}`}>
     <div
       ref={wrapRef}
-      className="relative h-dvh touch-none select-none overflow-hidden"
+      className="relative min-w-0 flex-1 touch-none select-none overflow-hidden"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -622,12 +718,14 @@ export default function TreeView({ focusId = null }) {
       )}
 
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-4 top-4">
-          <Pill onClick={() => nav('/')} ariaLabel="Back to list">
-            <ListGlyph className="size-4" />
-            People
-          </Pill>
-        </div>
+        {!workspace && (
+          <div className="absolute left-4 top-4">
+            <Pill onClick={() => nav('/')} ariaLabel="Back to list">
+              <ListGlyph className="size-4" />
+              People
+            </Pill>
+          </div>
+        )}
         <div className="absolute right-4 top-4 flex flex-col items-end gap-2">
           {!branchRootId && clusters.length > 0 && (
             <Pill
@@ -645,6 +743,20 @@ export default function TreeView({ focusId = null }) {
             <FitGlyph className="size-4" />
             Fit
           </Pill>
+          {data.self && (
+            <Pill onClick={locateSelf} ariaLabel="Find yourself on the tree">
+              <LocateGlyph className="size-4" />
+              You
+            </Pill>
+          )}
+          <div className="hidden flex-col items-end gap-2 lg:flex">
+            <Pill onClick={() => zoomBy(1.3)} ariaLabel="Zoom in">
+              +
+            </Pill>
+            <Pill onClick={() => zoomBy(1 / 1.3)} ariaLabel="Zoom out">
+              −
+            </Pill>
+          </div>
         </div>
 
         {branchPerson && (
@@ -661,7 +773,7 @@ export default function TreeView({ focusId = null }) {
           </p>
         )}
 
-        {selected && (
+        {!workspace && selected && (
           <div
             data-card
             onClick={(e) => {
@@ -721,6 +833,38 @@ export default function TreeView({ focusId = null }) {
           </div>
         )}
       </div>
+    </div>
+
+    {/* The record panel — desktop's replacement for both the selection card
+        and the card→page two-step. Keyed by person so a swap resets scroll. */}
+    {workspace && selected && (
+      <aside key={selected.id} className="w-[380px] shrink-0 overflow-y-auto border-l border-line bg-paper">
+        <PersonDetail
+          id={selected.id}
+          variant="panel"
+          onClose={() => setSelectedId(null)}
+          treeActions={
+            selectedKin === 'extended' ? (
+              <button
+                type="button"
+                onClick={() => foldFamilyOf(selected.id)}
+                className="rounded-full border border-line bg-card px-3.5 py-2 text-[13px] font-semibold text-ink-soft transition-colors hover:border-accent"
+              >
+                Fold family
+              </button>
+            ) : !branchRootId ? (
+              <button
+                type="button"
+                onClick={() => setBranchRootId(selected.id)}
+                className="rounded-full border border-line bg-card px-3.5 py-2 text-[13px] font-semibold text-ink-soft transition-colors hover:border-accent"
+              >
+                Branch
+              </button>
+            ) : null
+          }
+        />
+      </aside>
+    )}
     </div>
   );
 }

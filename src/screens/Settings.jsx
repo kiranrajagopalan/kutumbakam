@@ -213,7 +213,7 @@ export default function Settings() {
           v{__APP_VERSION__} · {__BUILD_SHA__} · local-first — your family stays on your device
         </p>
         <p className="mt-3 max-w-[32ch] text-[12.5px] leading-relaxed text-ink-faint">
-          Coming next: “how are we related” · Tulu kinship terms · careful sharing
+          Coming next: Tulu kinship terms · careful sharing with family
         </p>
       </div>
 

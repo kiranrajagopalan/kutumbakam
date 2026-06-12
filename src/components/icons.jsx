@@ -46,3 +46,16 @@ export const FitGlyph = (p) => (
     <path d="M9 4H5.5A1.5 1.5 0 0 0 4 5.5V9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15M15 20h3.5a1.5 1.5 0 0 0 1.5-1.5V15" />
   </I>
 );
+// The "find me" mark — same visual language as the dashed self-ring on the tree.
+export const LocateGlyph = (p) => (
+  <I {...p}>
+    <circle cx="12" cy="12" r="7.5" strokeDasharray="2.6 3.4" />
+    <circle cx="12" cy="12" r="2.1" fill="currentColor" stroke="none" />
+  </I>
+);
+export const PanelGlyph = (p) => (
+  <I {...p}>
+    <rect x="3.5" y="5" width="17" height="14" rx="2.5" />
+    <path d="M9.5 5v14" />
+  </I>
+);

@@ -55,7 +55,11 @@ function UnlinkX({ label, onClick }) {
   );
 }
 
-export default function PersonDetail({ id }) {
+// `variant="panel"` renders the same record as the desktop workspace's
+// docked right panel: ✕ instead of back, tree actions instead of nav
+// buttons, and the add-relative pill stays inside the panel's own scroll.
+export default function PersonDetail({ id, variant = 'page', onClose, treeActions }) {
+  const panel = variant === 'panel';
   const person = useLiveQuery(() => getPerson(id), [id]);
   const family = useLiveQuery(() => getImmediateFamily(id), [id]);
   const hints = useLiveQuery(() => getNameHints(), []);
@@ -126,33 +130,41 @@ export default function PersonDetail({ id }) {
   };
 
   return (
-    <div className="px-4 pb-32 pt-4">
+    <div className={panel ? 'px-4 pb-6 pt-3' : 'px-4 pb-32 pt-4'}>
       <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={back}
-          aria-label="Back"
-          className="-ml-1.5 flex size-10 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-accent-soft/40"
-        >
-          <ChevronLeft />
-        </button>
+        {panel ? (
+          <div className="flex items-center gap-1.5">{treeActions}</div>
+        ) : (
+          <button
+            type="button"
+            onClick={back}
+            aria-label="Back"
+            className="-ml-1.5 flex size-10 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-accent-soft/40"
+          >
+            <ChevronLeft />
+          </button>
+        )}
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            aria-label="See on the tree"
-            onClick={() => nav(`/tree/${id}`)}
-            className="flex size-10 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-accent-soft/40"
-          >
-            <TreeGlyph />
-          </button>
-          <button
-            type="button"
-            aria-label="All people"
-            onClick={() => nav('/')}
-            className="flex size-10 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-accent-soft/40"
-          >
-            <ListGlyph />
-          </button>
+          {!panel && (
+            <button
+              type="button"
+              aria-label="See on the tree"
+              onClick={() => nav(`/tree/${id}`)}
+              className="flex size-10 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-accent-soft/40"
+            >
+              <TreeGlyph />
+            </button>
+          )}
+          {!panel && (
+            <button
+              type="button"
+              aria-label="All people"
+              onClick={() => nav('/')}
+              className="flex size-10 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-accent-soft/40"
+            >
+              <ListGlyph />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => nav(`/p/${id}/edit`)}
@@ -161,6 +173,16 @@ export default function PersonDetail({ id }) {
             <Pencil className="size-4" />
             Edit
           </button>
+          {panel && (
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={onClose}
+              className="flex size-10 items-center justify-center rounded-full text-[15px] text-ink-soft transition-colors hover:bg-accent-soft/40"
+            >
+              ✕
+            </button>
+          )}
         </div>
       </div>
 
@@ -412,7 +434,11 @@ export default function PersonDetail({ id }) {
       <button
         type="button"
         onClick={() => openSheet(null)}
-        className="fixed bottom-[max(24px,env(safe-area-inset-bottom))] left-1/2 z-40 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-accent px-5 py-3.5 text-[15px] font-semibold text-[#fff8f3] shadow-pop transition-colors active:bg-accent-deep"
+        className={
+          panel
+            ? 'sticky bottom-4 z-10 mx-auto mt-8 flex w-fit items-center gap-1.5 rounded-full bg-accent px-5 py-3 text-[15px] font-semibold text-[#fff8f3] shadow-pop transition-colors hover:bg-accent-deep active:bg-accent-deep'
+            : 'fixed bottom-[max(24px,env(safe-area-inset-bottom))] left-1/2 z-40 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-accent px-5 py-3.5 text-[15px] font-semibold text-[#fff8f3] shadow-pop transition-colors active:bg-accent-deep'
+        }
       >
         <Plus className="size-5" />
         Add relative

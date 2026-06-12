@@ -3,12 +3,14 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { countPersons } from './db/repo.js';
 import { onToast } from './lib/toast.js';
 import { useRoute } from './lib/router.js';
+import { useIsDesktop } from './lib/useIsDesktop.js';
 import Onboarding from './screens/Onboarding.jsx';
 import PeopleList from './screens/PeopleList.jsx';
 import PersonDetail from './screens/PersonDetail.jsx';
 import PersonForm from './screens/PersonForm.jsx';
 import Settings from './screens/Settings.jsx';
 import TreeView from './screens/TreeView.jsx';
+import Workspace from './screens/Workspace.jsx';
 
 function ToastHost() {
   const [toasts, setToasts] = useState([]);
@@ -71,22 +73,29 @@ function UpdateBanner() {
 export default function App() {
   const route = useRoute();
   const count = useLiveQuery(() => countPersons(), []);
+  const isDesktop = useIsDesktop();
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [route.name, route.id]);
 
   let screen = null;
+  let full = false; // workspace and tree own the whole viewport — no column cap
   if (count === undefined) screen = null; // first IndexedDB read — avoid a flash
   else if (count === 0) screen = <Onboarding />;
-  else if (route.name === 'person') screen = <PersonDetail id={route.id} key={route.id} />;
+  else if (isDesktop && (route.name === 'home' || route.name === 'person' || route.name === 'tree')) {
+    screen = <Workspace route={route} />;
+    full = true;
+  } else if (route.name === 'person') screen = <PersonDetail id={route.id} key={route.id} />;
   else if (route.name === 'edit') screen = <PersonForm id={route.id} key={route.id} />;
   else if (route.name === 'settings') screen = <Settings />;
-  else if (route.name === 'tree') screen = <TreeView focusId={route.focusId} />;
-  else screen = <PeopleList />;
+  else if (route.name === 'tree') {
+    screen = <TreeView focusId={route.focusId} />;
+    full = true;
+  } else screen = <PeopleList />;
 
   return (
-    <div className="mx-auto min-h-dvh max-w-[440px]">
+    <div className={full ? 'min-h-dvh' : 'mx-auto min-h-dvh w-full max-w-[440px] lg:max-w-[520px]'}>
       {screen}
       <ToastHost />
       <UpdateBanner />

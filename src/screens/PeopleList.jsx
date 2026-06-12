@@ -5,18 +5,10 @@ import PersonRow from '../components/PersonRow.jsx';
 import Sheet from '../components/Sheet.jsx';
 import QuickPersonForm from '../components/QuickPersonForm.jsx';
 import { Gear, Plus, TreeGlyph } from '../components/icons.jsx';
+import { GROUPS } from '../components/PeopleIndex.jsx';
 import { getPeopleWithKinship, createPerson } from '../db/repo.js';
 import { toast } from '../lib/toast.js';
 import { nav } from '../lib/router.js';
-
-// List sections, in order. "Family" is the bloodline plus everyone married
-// into it; "Extended" is the families they came from (in-laws' kin);
-// "Not yet connected" is data-entry in progress.
-const GROUPS = [
-  { key: 'family', title: 'Family', match: (c) => c === 'blood' || c === 'married' },
-  { key: 'extended', title: 'Extended family', match: (c) => c === 'extended' },
-  { key: 'unconnected', title: 'Not yet connected', match: (c) => c === 'unconnected' },
-];
 
 export default function PeopleList() {
   const data = useLiveQuery(() => getPeopleWithKinship(), []);

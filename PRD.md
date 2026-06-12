@@ -48,6 +48,14 @@ people are related, in Tulu and English.
   chosen over file-passing packets — contributor friction is the binding constraint
   (the first contributor is a non-technical elder; her first five minutes decide
   adoption). Full locked design in M5 below.
+- **Desktop grammar — shipped 12 Jun 2026**: one fork at 1024px. Desktop is one
+  workspace — people index | tree canvas | docked record (Kiran's "Airbnb
+  list + map" instinct; selecting opens the full record in place, no
+  card→page two-step). "Inspect in panels, transact in dialogs": sheets render
+  as centred paper dialogs at lg. "You" locate control (the map idiom — ring
+  says which one is me, button takes me home). Touch grammar below 1024px is
+  untouched; iPad portrait deliberately stays touch. Codified as Paper & Ink
+  §10 + README "Desktop grammar". Print + projection-mode ideas parked (below).
 
 ## Data model (`src/db/`)
 - `persons` — identity, photo (small webp Blob), fuzzy years (`birthYear` + `birthApprox`),
@@ -108,6 +116,22 @@ people are related, in Tulu and English.
   the paper &amp; ink direction as final, and the system was extracted into a
   reusable package at `../paper-ink/` (tokens.css + styleguide.html + README
   with the non-token laws). Future visual changes go through those tokens.
+  **M2.3 — Desktop workspace (12 Jun 2026)**: at ≥1024px the app is one
+  workspace — people index (300px, collapsible, search + add) | full-bleed
+  tree canvas | docked record panel (380px; `PersonDetail variant="panel"`
+  with ✕, tree actions, in-panel sticky add-relative) under a 56px top bar.
+  Canvas taps swap the record in place without re-centring; index picks write
+  the URL and centre + trace; panes docking re-centre the selected node
+  deterministically (post-commit getBoundingClientRect, not rAF). `Sheet`
+  renders as a centred dialog at lg (one primitive, both grammars; Esc closes
+  dialogs first, then selection). Tree gains hover rings (`@media
+  (hover:hover)` only), +/− zoom pills (lg-only), a "You" locate pill (all
+  sizes — exits branch view if needed), Esc-to-deselect. Edit/settings/
+  onboarding stay a centred ~520px column. Mobile and tablet rendering are
+  unchanged, except the tree is now full-width on tablets (was capped at
+  440px). Fixed along the way: the wheel-zoom listener never attached when
+  the first render returned null (`[]`-deps effect captured an empty wrapRef
+  — now keyed on data presence).
 - **M3 — "How are we related"** (English engine shipped 11 Jun 2026): pure-graph
   path engine in `src/lib/relationship.js` — walks a bipartite person↔union graph
   (each step crosses exactly one union; forbidding union revisits canonicalizes
@@ -139,6 +163,14 @@ people are related, in Tulu and English.
   non-standard `PEDI step`), FAM with HUSB/WIFE/MARR/DIV/CHIL; the sensitive
   class never appears — the builder doesn't know those fields exist.
   Structural tests: `node scripts/test-gedcom.mjs`.
+- **Parked — print & projection (Kiran will pick these up)**: print artifacts
+  in rough cost order — (a) person-page print stylesheet ("family record"
+  sheet), (b) tree poster view (fit-to-A4-landscape/A3/A2, title block,
+  line-grammar legend, print or PDF), (c) generated family-book PDF (tree
+  overview + a page per person), (d) blank branch entry forms for elders to
+  fill by hand. Printouts default to the shareable (thinned) dataset — a
+  printout is the ultimate uncontrolled share surface. Projection mode
+  (chrome-hiding toggle) is a micro on top of the desktop canvas.
 - **M5 — Multi-user (design locked 12 Jun 2026; build deferred until the real
   family is documented)**: hosted live tree, chosen over file-passing packets.
   - **Architecture**: the app stays an offline-first PWA — Dexie remains the working
@@ -190,4 +222,8 @@ onboarding → "Explore a demo family" → 32 fictional people covering remarria
 half-siblings, adoption, divorce (dashed line + outline heart), two in-law
 families (capsules), a single recorded parent ("+ Add partner" rehearsal), an
 in-family second-marriage bridge, and two not-yet-connected people.
+Desktop (≥1024px): one workspace — pick in the index → tree centres + record
+docks; canvas tap swaps the record without moving the view; Esc/✕/empty-tap
+close it; You/Fit/+/− pills; sheets open as centred dialogs. Below 1024px the
+touch grammar must be byte-identical to before.
 `node scripts/test-relationship.mjs` and `npm run build` must stay clean.

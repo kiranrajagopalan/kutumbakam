@@ -3,3 +3,6 @@ dist
 dev-dist
 .DS_Store
 *.local
+
+# Real-family data — never committed (personal backups live here)
+back_up_family_tree_DONOTPUSHTOGITPERSONAL/
