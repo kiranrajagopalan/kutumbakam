@@ -201,6 +201,54 @@ export default function TreeView({ focusId = null, focusKey = 0, workspace = fal
     onSelectionChange?.(selectedId);
   }, [selectedId, onSelectionChange]);
 
+  // --- Animated view transitions (12 Jun 2026, the delight round) ---
+  // System-caused view changes glide (cubic ease-in-out, ~420ms); user
+  // gestures stay 1:1 and cancel any glide instantly. Zoom interpolates
+  // geometrically so the zoom-feel is even across the journey. rAF-driven
+  // with a timer watchdog: environments that suppress rAF (the embedded
+  // preview) still land exactly on the target. prefers-reduced-motion jumps.
+  const animRef = useRef(null);
+  const cancelAnim = () => {
+    const a = animRef.current;
+    if (!a) return;
+    cancelAnimationFrame(a.raf);
+    clearTimeout(a.watchdog);
+    animRef.current = null;
+  };
+  const animateViewTo = (to, dur = 420) => {
+    cancelAnim();
+    const from = { ...viewRef.current };
+    const still =
+      Math.abs(from.x - to.x) < 2 && Math.abs(from.y - to.y) < 2 && Math.abs(from.k - to.k) < 0.005;
+    if (still || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setView(to);
+      return;
+    }
+    const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+    const t0 = performance.now();
+    const a = { raf: 0, watchdog: 0, to };
+    animRef.current = a;
+    const step = (now) => {
+      if (animRef.current !== a) return;
+      const t = Math.min(1, (now - t0) / dur);
+      const e = ease(t);
+      setView({
+        k: from.k * Math.pow(to.k / from.k, e),
+        x: from.x + (to.x - from.x) * e,
+        y: from.y + (to.y - from.y) * e,
+      });
+      if (t < 1) a.raf = requestAnimationFrame(step);
+      else cancelAnim();
+    };
+    a.raf = requestAnimationFrame(step);
+    a.watchdog = setTimeout(() => {
+      if (animRef.current === a) {
+        cancelAnim();
+        setView(to);
+      }
+    }, dur + 90);
+  };
+
   const clusters = useMemo(() => (data?.classes ? inLawClusters(data, data.classes) : []), [data]);
 
   // What the layout includes: a branch, or everything minus folded in-law
@@ -273,16 +321,18 @@ export default function TreeView({ focusId = null, focusKey = 0, workspace = fal
       .filter(Boolean);
   }, [layout, clusters, expandedCaps, branchRootId, data]);
 
-  const fitAll = () => {
+  const fitAll = (animate = false) => {
     if (!layoutRef.current || !wrapRef.current) return;
     const L = layoutRef.current;
     const { width: cw, height: ch } = wrapRef.current.getBoundingClientRect();
     const k = clamp(Math.min((cw - 32) / L.size.width, (ch - 160) / L.size.height), 0.12, 1.05);
-    setView({
+    const target = {
       k,
       x: (cw - L.size.width * k) / 2,
       y: Math.max((ch - L.size.height * k) / 2, 72),
-    });
+    };
+    if (animate) animateViewTo(target);
+    else setView(target);
   };
 
   const centerOn = (id) => {
@@ -293,7 +343,7 @@ export default function TreeView({ focusId = null, focusKey = 0, workspace = fal
     if (!node) return false;
     const { width: cw, height: ch } = el.getBoundingClientRect();
     const k = 0.9;
-    setView({ k, x: cw / 2 - node.cx * k, y: ch / 2.4 - node.cy * k });
+    animateViewTo({ k, x: cw / 2 - node.cx * k, y: ch / 2.4 - node.cy * k });
     setSelectedId(id);
     focusPending.current = null;
     return true;
@@ -378,6 +428,7 @@ export default function TreeView({ focusId = null, focusKey = 0, workspace = fal
     if (!el) return;
     const onWheel = (e) => {
       e.preventDefault();
+      cancelAnim(); // direct manipulation always wins over a glide
       const v = viewRef.current;
       const rect = el.getBoundingClientRect();
       const mx = e.clientX - rect.left;
@@ -413,26 +464,32 @@ export default function TreeView({ focusId = null, focusKey = 0, workspace = fal
   // resizes/rotation (the ResizeObserver — inert in the embedded preview,
   // live in real browsers). User pan/zoom is never touched.
   const lastSize = useRef(null);
-  const reflowCompensate = () => {
+  const reflowCompensate = (animated = false) => {
     const el = wrapRef.current;
     if (!el) return;
     const { width: w, height: h } = el.getBoundingClientRect();
     const last = lastSize.current;
     lastSize.current = { w, h };
     if (!last || (Math.abs(last.w - w) <= 1 && Math.abs(last.h - h) <= 1)) return;
+    // Retargeting an in-flight glide must respect its DESTINATION (zoom
+    // included), not the barely-moved current frame — otherwise the panel
+    // docking 20ms into a centre-on glide throws the zoom-in away.
+    const v = animRef.current?.to || viewRef.current;
     const id = selectedRef.current;
     const node = id && layoutRef.current ? layoutRef.current.nodes.find((n) => n.id === id) : null;
-    if (node) {
-      setView((v) => ({ ...v, x: w / 2 - node.cx * v.k, y: h / 2.4 - node.cy * v.k }));
-    } else {
-      setView((v) => ({ ...v, x: v.x + (w - last.w) / 2, y: v.y + (h - last.h) / 2 }));
-    }
+    const target = node
+      ? { ...v, x: w / 2 - node.cx * v.k, y: h / 2.4 - node.cy * v.k }
+      : { ...v, x: v.x + (w - last.w) / 2, y: v.y + (h - last.h) / 2 };
+    // Pane docking glides; live window-resize tracks 1:1 (a tween would lag
+    // behind the user's drag of the window edge).
+    if (animated) animateViewTo(target, 320);
+    else setView(target);
   };
 
   useEffect(() => {
     const el = wrapRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(reflowCompensate);
+    const ro = new ResizeObserver(() => reflowCompensate(false));
     ro.observe(el);
     return () => ro.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -443,7 +500,7 @@ export default function TreeView({ focusId = null, focusKey = 0, workspace = fal
     if (!workspace) return;
     // !!data: the first run with a real canvas seeds the size baseline —
     // without it, the first panel-open would swallow its own measurement.
-    reflowCompensate();
+    reflowCompensate(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspace, panelOpen, reflowKey, !!data]);
 
@@ -454,7 +511,7 @@ export default function TreeView({ focusId = null, focusKey = 0, workspace = fal
     const { width, height } = el.getBoundingClientRect();
     const k = clamp(v.k * f, 0.12, 3);
     const ff = k / v.k;
-    setView({ k, x: width / 2 - (width / 2 - v.x) * ff, y: height / 2 - (height / 2 - v.y) * ff });
+    animateViewTo({ k, x: width / 2 - (width / 2 - v.x) * ff, y: height / 2 - (height / 2 - v.y) * ff }, 200);
   };
 
   // The "find me" control — the map idiom. Exits branch view when you
@@ -481,6 +538,7 @@ export default function TreeView({ focusId = null, focusKey = 0, workspace = fal
   const onPointerDown = (e) => {
     // Buttons and the selection card keep native click behaviour.
     if (e.target.closest?.('button, [data-card]')) return;
+    cancelAnim(); // a finger on the canvas takes over from any glide
     ptrs.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const g = gesture.current;
     if (ptrs.current.size === 1) {
@@ -743,7 +801,7 @@ export default function TreeView({ focusId = null, focusKey = 0, workspace = fal
               {foldedCount > 0 ? `In-laws · ${foldedCount} folded` : 'In-laws shown'}
             </Pill>
           )}
-          <Pill onClick={fitAll} ariaLabel="Fit whole tree">
+          <Pill onClick={() => fitAll(true)} ariaLabel="Fit whole tree">
             <FitGlyph className="size-4" />
             Fit
           </Pill>
@@ -842,7 +900,7 @@ export default function TreeView({ focusId = null, focusKey = 0, workspace = fal
     {/* The record panel — desktop's replacement for both the selection card
         and the card→page two-step. Keyed by person so a swap resets scroll. */}
     {workspace && selected && (
-      <aside key={selected.id} className="w-[380px] shrink-0 overflow-y-auto border-l border-line bg-paper">
+      <aside key={selected.id} className="animate-fade-in w-[380px] shrink-0 overflow-y-auto border-l border-line bg-paper">
         <PersonDetail
           id={selected.id}
           variant="panel"
