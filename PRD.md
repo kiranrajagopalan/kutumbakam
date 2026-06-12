@@ -133,8 +133,14 @@ people are related, in Tulu and English.
   tree canvas | docked record panel (380px; `PersonDetail variant="panel"`
   with ✕, tree actions, in-panel sticky add-relative) under a 56px top bar.
   Canvas taps swap the record in place without re-centring; index picks write
-  the URL and centre + trace; panes docking re-centre the selected node
-  deterministically (post-commit getBoundingClientRect, not rAF). `Sheet`
+  the URL and centre + trace. **Reflow law (12 Jun 2026, after Kiran's
+  real-hardware pass)**: through any system-caused canvas resize — panes
+  docking/undocking (including panel close) and window resizes — the world
+  point at the centre stays at the centre; a live selection re-centres
+  explicitly (post-commit getBoundingClientRect, not rAF; baseline seeded on
+  data arrival). User pan/zoom is never touched. The record panel stays a
+  docked flat peer (inspector pattern), never an overlay — overlay = the
+  transact family; elevation marks transience only. `Sheet`
   renders as a centred dialog at lg (one primitive, both grammars; Esc closes
   dialogs first, then selection). Tree gains hover rings (`@media
   (hover:hover)` only), +/− zoom pills (lg-only), a "You" locate pill (all
