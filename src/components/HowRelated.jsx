@@ -7,6 +7,7 @@ import { getRelationship, getSelf, listPersons, getNameHints } from '../db/repo.
 import { renderRelationCard, dataUrlToFile } from '../lib/relationCard.js';
 import { layoutRelationPath } from '../lib/relationPath.js';
 import { toneFor, initialsOf } from '../lib/avatar.js';
+import { nameMatch } from '../lib/nameSearch.js';
 import { toast } from '../lib/toast.js';
 
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -38,11 +39,7 @@ export default function HowRelated({ person }) {
   const result = data?.result;
   const anchorLabel = anchor ? (anchor.isSelf ? 'You' : anchor.name.split(/\s+/)[0]) : 'Pick';
 
-  const candidates = everyone.filter(
-    (p) =>
-      p.id !== person.id &&
-      (!q || `${p.name} ${p.nickname || ''}`.toLowerCase().includes(q.toLowerCase())),
-  );
+  const candidates = everyone.filter((p) => p.id !== person.id && nameMatch(p, q));
 
   return (
     <section className="mt-6">

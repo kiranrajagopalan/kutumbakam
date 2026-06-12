@@ -6,6 +6,7 @@ import Sheet from '../components/Sheet.jsx';
 import QuickPersonForm from '../components/QuickPersonForm.jsx';
 import { Gear, Plus, TreeGlyph } from '../components/icons.jsx';
 import { GROUPS } from '../components/PeopleIndex.jsx';
+import { nameMatch } from '../lib/nameSearch.js';
 import { getPeopleWithKinship, createPerson } from '../db/repo.js';
 import { toast } from '../lib/toast.js';
 import { nav } from '../lib/router.js';
@@ -17,9 +18,7 @@ export default function PeopleList() {
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(false);
 
-  const filtered = q
-    ? persons.filter((p) => `${p.name} ${p.nickname || ''}`.toLowerCase().includes(q.toLowerCase()))
-    : persons;
+  const filtered = q ? persons.filter((p) => nameMatch(p, q)) : persons;
 
   const sections = classes
     ? GROUPS.map((g) => ({ ...g, people: filtered.filter((p) => g.match(classes.get(p.id))) })).filter(

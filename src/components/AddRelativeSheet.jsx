@@ -4,6 +4,7 @@ import Sheet from './Sheet.jsx';
 import QuickPersonForm from './QuickPersonForm.jsx';
 import PersonRow from './PersonRow.jsx';
 import { addRelative, listPersons, getNameHints } from '../db/repo.js';
+import { nameMatch } from '../lib/nameSearch.js';
 import { toast } from '../lib/toast.js';
 
 const ROLES = [
@@ -54,11 +55,7 @@ export default function AddRelativeSheet({ anchor, family, open, onClose, initia
     return ids;
   }, [anchor, family]);
 
-  const candidates = everyone.filter(
-    (p) =>
-      !directIds.has(p.id) &&
-      (!q || `${p.name} ${p.nickname || ''}`.toLowerCase().includes(q.toLowerCase())),
-  );
+  const candidates = everyone.filter((p) => !directIds.has(p.id) && nameMatch(p, q));
 
   const targetUnion = targetUnionId ? family.unions.find((u) => u.union.id === targetUnionId) : null;
 
